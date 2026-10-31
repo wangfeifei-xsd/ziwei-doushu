@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import type { EventEmitter } from 'node:events';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -80,6 +81,13 @@ async function main() {
     assert.equal(await database.request('delete', editedId), false);
     assert.equal((await database.request<BirthProfile[]>('list')).length, 1, 'deletion affects only the selected archive');
     await assert.rejects(database.request('get', "' OR 1=1 --"), /无效/);
+    const draining: Promise<void>[] = [];
+    (process as EventEmitter).emit('ziwei-managed-drain', (task: Promise<void>) => draining.push(task));
+    assert.equal(draining.length, 1, 'the managed shutdown waits for the live database bridge');
+    await Promise.all(draining);
+    await assert.rejects(stat(path.join(directory, 'ziwei.lock.db')), { code: 'ENOENT' });
+    database = new H2Database(directory, { readOnly: true });
+    assert.deepEqual((await database.request<BirthProfile>('get', otherId)).form, otherForm, 'a drained database can be opened read-only immediately');
   } finally {
     await database.close();
     await rm(directory, { recursive: true, force: true });

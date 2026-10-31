@@ -2,7 +2,7 @@
 import { spawn, execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { mkdir, readFile, writeFile, rename, rm, realpath, stat, open } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rename, rm, realpath, stat, open, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import net from 'node:net';
 import { randomUUID } from 'node:crypto';
@@ -40,6 +40,15 @@ function owned(meta) {
 function groupAlive(pid) {
   if(windows)return Boolean(ps(pid));
   try { return execFileSync('ps',['-axo','pid=,pgid=,stat='],{encoding:'utf8'}).split('\n').some(line=>{const fields=line.trim().split(/\s+/);return Number(fields[1])===pid&&!fields[2]?.includes('Z');}); } catch { return false; }
+}
+function windowsProcesses() {
+  const output=execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command','[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(); Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CreationDate | ConvertTo-Json -Compress'],{encoding:'utf8',windowsHide:true,timeout:10000}).trim();
+  const items=JSON.parse(output||'[]');return Array.isArray(items)?items:[items];
+}
+function descendants(items,pid) {
+  const ids=new Set([pid]);let changed=true;
+  while(changed){changed=false;for(const item of items)if(ids.has(item.ParentProcessId)&&!ids.has(item.ProcessId)){ids.add(item.ProcessId);changed=true;}}
+  return items.filter(item=>item.ProcessId!==pid&&ids.has(item.ProcessId));
 }
 async function portFree(port) {
   return new Promise(resolve=>{const server=net.createServer();server.once('error',()=>resolve(false));server.listen(port,'127.0.0.1',()=>server.close(()=>resolve(true)));});
@@ -79,8 +88,7 @@ async function stopTarget(target,force=false) {
   const meta=await readJSON(stateFile(target));
   if(!owned(meta)) {await rm(stateFile(target),{force:true});console.log(`${target} 未运行，已清理失效记录。`);return;}
   if(windows) {
-    // Ask the supervisor to end stdin first, then taskkill only its verified tree if forced.
-    await writeFile(path.join(states,`${target}.${meta.instance}.stop`),'stop');
+    await writeFile(path.join(states,`${target}.${meta.instance}.stop`),'drain');
   } else process.kill(-meta.pid,'SIGTERM');
   const deadline=Date.now()+20000;
   while(groupAlive(meta.pid)&&Date.now()<deadline)await pause(250);
@@ -91,6 +99,7 @@ async function stopTarget(target,force=false) {
   }
   if(groupAlive(meta.pid))throw new Error(`关闭超时，记录和日志已保留：${meta.log}。确认后可加 --force 重试。`);
   await rm(stateFile(target),{force:true});await rm(path.join(states,`${target}.${meta.instance}.stop`),{force:true});
+  await rm(path.join(states,`${target}.${meta.instance}.stop.workers`),{recursive:true,force:true});
   if(!await portFree(meta.port))throw new Error(`本项目进程已退出，但端口 ${meta.port} 仍被占用；未终止占用者。`);
   console.log(`${target} 已关闭，端口 ${meta.port} 已释放。`);
 }
@@ -150,11 +159,31 @@ async function supervise(target,instance) {
   const identity=ps(process.pid);Object.assign(meta,{pid:process.pid,birth:identity?.birth,pgid:identity?.pgid,childPid:child.pid});await atomicJSON(stateFile(target),meta);
   async function shutdown(){
     if(stopping)return;stopping=true;
+    let windowsTree=[];
+    if(windows){
+      // All preloaded workers acknowledge resource cleanup before Next CLI may
+      // terminate its worker. In particular H2 must close stdin and remove locks.
+      const registry=`${marker}.workers`;let ready=false;const deadline=Date.now()+10000;
+      while(Date.now()<deadline){
+        const live=windowsProcesses();const ids=new Set(live.map(item=>item.ProcessId));
+        const names=await readdir(registry).catch(()=>[]);ready=true;
+        for(const name of names.filter(name=>name.endsWith('.json'))){
+          const pid=Number(name.slice(0,-5));if(!ids.has(pid))continue;
+          try{await stat(path.join(registry,`${pid}.ready`));}catch{ready=false;break;}
+        }
+        if(ready){windowsTree=descendants(live,process.pid);break;}
+        await pause(100);
+      }
+      if(!ready){console.error('资源关闭超时，保留 supervisor 供诊断。');return;}
+      await writeFile(marker,'stop');
+    }
     // Closing stdin lets H2 bridges flush when the Next worker exits. The POSIX group signal also reaches workers.
     child.stdin.end();if(!windows)try{child.kill('SIGTERM');}catch{}
     if(!windows)try{process.kill(-process.pid,'SIGTERM');}catch{}
-    for(let i=0;i<70;i++){if(windows?exited:!otherGroupMembers())break;await pause(200);}
+    function windowsChildrenAlive(){const live=windowsProcesses();return windowsTree.some(original=>live.some(item=>item.ProcessId===original.ProcessId&&String(item.CreationDate)===String(original.CreationDate)));}
+    for(let i=0;i<70;i++){if(windows?exited&&!windowsChildrenAlive():!otherGroupMembers())break;await pause(200);}
     if(windows&&!exited){console.error('等待服务子进程退出。');return;}
+    if(windows&&windowsChildrenAlive()){console.error('仍有 Windows 子进程未退出，保留 supervisor 供诊断。');return;}
     if(!windows&&otherGroupMembers()){console.error('仍有子进程未退出，保留 supervisor 供 --force 诊断。');return;}
     clearInterval(watch);await rm(marker,{force:true});process.exit(exited?0:1);
   }

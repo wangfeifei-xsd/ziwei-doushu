@@ -22,6 +22,7 @@ export class H2Database {
   private failure: Error | null = null;
 
   constructor(dataDir = process.env.H2_DATA_DIR || defaultDataDir(), options: { readOnly?: boolean } = {}) {
+    if (process.env.ZIWEI_SERVICE_DRAINING === '1') throw new Error('网站服务正在关闭，请稍后重试。');
     const databasePath = path.resolve(dataDir, 'ziwei');
     if (/[;\r\n]/.test(databasePath)) throw new Error('H2 数据目录不能包含分号或换行。');
     mkdirSync(/* turbopackIgnore: true */ path.dirname(databasePath), { recursive: true, mode: 0o700 });
@@ -41,7 +42,9 @@ export class H2Database {
     });
     const lines = createInterface({ input: this.child.stdout });
     const onExit = () => { this.child.kill(); };
+    const onDrain = (waitUntil: (task: Promise<void>) => void) => waitUntil(this.close());
     process.once('exit', onExit);
+    process.on('ziwei-managed-drain', onDrain);
     this.ready = new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.fail(new Error('H2 数据库启动超时，请检查 Java 和数据目录。'));
@@ -55,6 +58,7 @@ export class H2Database {
       this.child.once('close', () => {
         lines.close();
         process.removeListener('exit', onExit);
+        process.removeListener('ziwei-managed-drain', onDrain);
         failed(this.failure || new Error('H2 数据库连接已关闭，请重试。'));
       });
       lines.on('line', line => {

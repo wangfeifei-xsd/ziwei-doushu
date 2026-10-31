@@ -88,7 +88,7 @@ export default function ShareCardCanvas({ chart, birth, highlight }: ShareCardPr
           <div style={{
             width: '34px', height: '34px', borderRadius: '50%',
             background: 'linear-gradient(135deg, #d4a948 0%, #b8922a 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            textAlign: 'center', lineHeight: '34px', flexShrink: 0,
             color: 'white', fontSize: '15px', fontWeight: 700,
           }}>紫</div>
           <div>
@@ -261,7 +261,7 @@ export default function ShareCardCanvas({ chart, birth, highlight }: ShareCardPr
                 倪海厦为师 · AI 答疑伴学
               </div>
               <div style={{ fontSize: '8px', color: '#a89b7c', letterSpacing: '0.15em', marginTop: '4px' }}>
-                扫码起你的命盘 →
+                以盘为镜 · 以理为引
               </div>
             </div>
           </div>

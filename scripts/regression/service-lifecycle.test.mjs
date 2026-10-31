@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {mkdtemp,cp,mkdir,symlink,writeFile,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,cp,mkdir,symlink,writeFile,readFile,rm,stat} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {spawn,execFileSync} from 'node:child_process';
@@ -41,6 +41,7 @@ try{
  assert.match(await run(['status','--all']),/运行中/);assert.match(await run(['stop','web']),/已释放/);assert.equal(await free(webPort),true);assert.equal(await free(vitePort),false);
  assert.match(await run(['start','web','--port',String(webPort)]),/启动成功/);const restored=await(await fetch(`http://127.0.0.1:${webPort}/api/profiles`)).json();assert.equal(restored.profiles.length,1);
  assert.match(await run(['stop','--all']),/已关闭/);assert.ok(await free(webPort));assert.ok(await free(vitePort));await run(['stop','--all']);
+ await assert.rejects(stat(path.join(env.H2_DATA_DIR,'ziwei.lock.db')),{code:'ENOENT'},'normal stop releases the H2 lock before returning');
  const snapshot=path.join(temp,'导出 备份.json');execFileSync(process.execPath,['--import','tsx',path.join(fixture,'scripts/export-h2-profiles.ts'),'--data-dir',env.H2_DATA_DIR,'--out',snapshot],{cwd:fixture,env,stdio:'pipe'});const data=JSON.parse(await readFile(snapshot,'utf8'));assert.equal(data.profiles.length,1);assert.equal(data.profiles[0].id,saved.profile.id);
  if(process.platform==='win32'){
   const started=execFileSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(fixture,'scripts/start.ps1'),'app-web','--port',String(vitePort)],{cwd:temp,env,encoding:'utf8'});assert.match(started,/启动成功/);
