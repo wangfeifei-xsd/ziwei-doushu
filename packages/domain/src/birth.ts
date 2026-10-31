@@ -11,3 +11,10 @@ export interface BirthFormState {
   longitude: number;
   gender: 'male' | 'female';
 }
+
+export interface HistoryEntry {
+  id: string;
+  label: string;
+  form: BirthFormState;
+  savedAt: number;
+}

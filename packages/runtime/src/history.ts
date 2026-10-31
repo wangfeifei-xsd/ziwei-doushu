@@ -1,16 +1,9 @@
 import { preferences } from './preferences';
 import { useEffect, useState, useCallback } from 'react';
-import type { BirthFormState } from '@ziwei/domain/birth';
+import type { BirthFormState, HistoryEntry } from '@ziwei/domain/birth';
 
 const STORAGE_KEY = 'ziwei_history';
 const MAX_ENTRIES = 10;
-
-export interface HistoryEntry {
-  id: string;
-  label: string;
-  form: BirthFormState;
-  savedAt: number;
-}
 
 export function useHistory() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
