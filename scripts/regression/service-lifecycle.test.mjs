@@ -42,10 +42,13 @@ try{
  assert.match(await run(['start','web','--port',String(webPort)]),/启动成功/);const restored=await(await fetch(`http://127.0.0.1:${webPort}/api/profiles`)).json();assert.equal(restored.profiles.length,1);
  assert.match(await run(['stop','--all']),/已关闭/);assert.ok(await free(webPort));assert.ok(await free(vitePort));await run(['stop','--all']);
  await assert.rejects(stat(path.join(env.H2_DATA_DIR,'ziwei.lock.db')),{code:'ENOENT'},'normal stop releases the H2 lock before returning');
- const snapshot=path.join(temp,'导出 备份.json');execFileSync(process.execPath,['--import','tsx',path.join(fixture,'scripts/export-h2-profiles.ts'),'--data-dir',env.H2_DATA_DIR,'--out',snapshot],{cwd:fixture,env,stdio:'pipe'});const data=JSON.parse(await readFile(snapshot,'utf8'));assert.equal(data.profiles.length,1);assert.equal(data.profiles[0].id,saved.profile.id);
+ console.log('Lifecycle: readonly H2 export');
+ const snapshot=path.join(temp,'导出 备份.json');execFileSync(process.execPath,['--import','tsx',path.join(fixture,'scripts/export-h2-profiles.ts'),'--data-dir',env.H2_DATA_DIR,'--out',snapshot],{cwd:fixture,env,stdio:'pipe',timeout:45000});const data=JSON.parse(await readFile(snapshot,'utf8'));assert.equal(data.profiles.length,1);assert.equal(data.profiles[0].id,saved.profile.id);
  if(process.platform==='win32'){
-  const started=execFileSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(fixture,'scripts/start.ps1'),'app-web','--port',String(vitePort)],{cwd:temp,env,encoding:'utf8'});assert.match(started,/启动成功/);
-  execFileSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(fixture,'scripts/stop.ps1'),'app-web'],{cwd:temp,env,stdio:'pipe'});assert.ok(await free(vitePort));
+  console.log('Lifecycle: PowerShell start wrapper');
+  const started=execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(fixture,'scripts/start.ps1'),'app-web','--port',String(vitePort)],{cwd:temp,env,encoding:'utf8',timeout:45000});assert.match(started,/启动成功/);
+  console.log('Lifecycle: PowerShell stop wrapper');
+  execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(fixture,'scripts/stop.ps1'),'app-web'],{cwd:temp,env,stdio:'pipe',timeout:45000});assert.ok(await free(vitePort));
  }else{
   execFileSync(path.join(fixture,'scripts/start.sh'),['app-web','--port',String(vitePort)],{cwd:temp,env,stdio:'pipe'});execFileSync(path.join(fixture,'scripts/stop.sh'),['app-web'],{cwd:temp,env,stdio:'pipe'});assert.ok(await free(vitePort));
  }

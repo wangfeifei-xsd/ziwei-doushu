@@ -155,7 +155,7 @@ export default function BirthForm({ onSubmit, loading, initialData, onFormSave, 
   const summaryClr = 'var(--tx-2)';
 
   const inputStyle = {
-    background: inputBg,
+    backgroundColor: inputBg,
     border: `1px solid ${inputBorder}`,
     color: inputClr,
     borderRadius: '8px',
