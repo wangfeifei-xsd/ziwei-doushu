@@ -4,7 +4,7 @@ async function visit(dir){for(const entry of await readdir(dir,{withFileTypes:tr
 if(!files.some(file=>file.endsWith('.apk'))||process.env.SIGN_BUILD==='true'&&!files.some(file=>file.endsWith('.aab')))throw new Error('缺少所需 Android 产物。');
 for(const file of files){
  if(file.endsWith('.apk')){
-  const signer=path.join(process.env.ANDROID_HOME,'build-tools/37.0.0/apksigner');const report=execFileSync(signer,['verify','--print-certs',file],{encoding:'utf8'});
+  const signer=path.join(process.env.ANDROID_HOME,'build-tools',process.env.ANDROID_BUILD_TOOLS_VERSION||'36.0.0','apksigner');const report=execFileSync(signer,['verify','--print-certs',file],{encoding:'utf8'});
   if(process.env.SIGN_BUILD==='true'){
    const cert=execFileSync('keytool',['-exportcert','-keystore',path.join(process.env.RUNNER_TEMP,'ziwei-release.jks'),'-alias',process.env.ANDROID_KEY_ALIAS,'-storepass:env','ANDROID_KEYSTORE_PASSWORD']);
    const expected=createHash('sha256').update(cert).digest('hex');if(!report.toLowerCase().includes(expected))throw new Error('APK 签名与指定 release keystore 不一致。');

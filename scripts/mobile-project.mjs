@@ -8,6 +8,18 @@ const native=path.join(root,'apps/native');const require=createRequire(path.join
 const cli=path.join(path.dirname(require.resolve('@tauri-apps/cli/package.json')),'tauri.js');
 const platform=process.argv[2];if(!['android','ios'].includes(platform))throw new Error('指定 android 或 ios。');
 execFileSync(process.execPath,[cli,platform,'init','--ci','--skip-targets-install'],{cwd:native,stdio:'inherit'});
+if(platform==='android'){
+ // CLI 2.12.4 generates SDK 37 defaults, but Google's stable repository and
+ // the locked Tauri Android libraries currently provide SDK 36.
+ const api=process.env.ANDROID_API_LEVEL||'36';const tools=process.env.ANDROID_BUILD_TOOLS_VERSION||'36.0.0';
+ if(!/^\d+$/.test(api)||!/^\d+\.\d+\.\d+$/.test(tools))throw new Error('Android SDK/build-tools 版本无效。');
+ const file=path.join(native,'src-tauri/gen/android/app/build.gradle.kts');let source=await readFile(file,'utf8');
+ if(!/\bcompileSdk\s*=\s*\d+/.test(source)||!/\btargetSdk\s*=\s*\d+/.test(source))throw new Error('Android 模板改变，无法锁定 SDK。');
+ source=source.replace(/\bcompileSdk\s*=\s*\d+/,`compileSdk = ${api}`).replace(/\btargetSdk\s*=\s*\d+/,`targetSdk = ${api}`);
+ if(/\bbuildToolsVersion\s*=\s*"[^"]+"/.test(source))source=source.replace(/\bbuildToolsVersion\s*=\s*"[^"]+"/,`buildToolsVersion = "${tools}"`);
+ else source=source.replace(`compileSdk = ${api}`,`compileSdk = ${api}\n    buildToolsVersion = "${tools}"`);
+ await writeFile(file,source);
+}
 if(platform==='android'&&process.env.SIGN_BUILD==='true'){
  for(const key of ['ANDROID_KEYSTORE','ANDROID_KEY_ALIAS','ANDROID_KEYSTORE_PASSWORD','ANDROID_KEY_PASSWORD','RUNNER_TEMP'])if(!process.env[key])throw new Error(`签名缺少 ${key}`);
  const secret=path.join(process.env.RUNNER_TEMP,'ziwei-release.jks');await writeFile(secret,Buffer.from(process.env.ANDROID_KEYSTORE,'base64'),{mode:0o600});

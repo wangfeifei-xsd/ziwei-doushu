@@ -5,7 +5,7 @@ apks=list(base.rglob('*.apk'))
 if not apks: raise SystemExit('No APK to validate')
 ndk=pathlib.Path(os.environ['NDK_HOME'])
 readelf=next(ndk.glob('toolchains/llvm/prebuilt/*/bin/llvm-readelf'))
-zipalign=pathlib.Path(os.environ['ANDROID_HOME'])/'build-tools/37.0.0/zipalign'
+zipalign=pathlib.Path(os.environ['ANDROID_HOME'])/'build-tools'/os.environ.get('ANDROID_BUILD_TOOLS_VERSION','36.0.0')/'zipalign'
 count=0
 for apk in apks:
     subprocess.run([str(zipalign),'-c','-P','16','-v','4',str(apk)],check=True,stdout=subprocess.DEVNULL)

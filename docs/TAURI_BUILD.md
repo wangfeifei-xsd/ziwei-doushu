@@ -38,7 +38,9 @@ npm run build:desktop -- --ci --target x86_64-pc-windows-msvc --bundles nsis --n
 
 ## Android
 
-需要 JDK 17、Android SDK/NDK。CI 固定 SDK/build-tools 37、NDK `28.2.13676358`，Rust target `aarch64-linux-android`，最低 Android API 24。按实际 SDK 安装路径设置 `ANDROID_HOME` 和 `NDK_HOME`。
+需要 JDK 17、Android SDK/NDK。CI 固定 SDK 36、Build Tools `36.0.0`、NDK `28.2.13676358`，Rust target `aarch64-linux-android`，最低 Android API 24。按实际 SDK 安装路径设置 `ANDROID_HOME` 和 `NDK_HOME`。
+
+锁定的 Tauri CLI 2.12.4 模板使用尚未在 Google 稳定仓库提供的 SDK 37；`mobile-project.mjs` 在生成工程后将 compile/target SDK 与 Build Tools 统一为上述已核对可下载的版本。Tauri 及原生插件库也使用 compile SDK 36，不修改 Cargo registry 的依赖源码。
 
 ```sh
 node scripts/mobile-project.mjs android
