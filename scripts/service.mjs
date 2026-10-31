@@ -141,9 +141,12 @@ async function supervise(target,instance) {
   const args=target==='web'?(meta.mode==='production'?[]:['dev','--webpack','--hostname','127.0.0.1','--port',String(meta.port)]):['--host','127.0.0.1','--port',String(meta.port),'--strictPort'];
   const marker=path.join(states,`${target}.${instance}.stop`);
   const childEnv={...process.env,ZIWEI_SERVICE_ID:instance,PORT:String(meta.port),HOSTNAME:'127.0.0.1'};
-  if(windows){childEnv.ZIWEI_MANAGED_STOP_FILE=marker;childEnv.NODE_OPTIONS=`${process.env.NODE_OPTIONS||''} --require "${path.join(root,'scripts/service-signal.cjs')}"`;}
+  if(windows){childEnv.ZIWEI_MANAGED_STOP_FILE=marker;const hook=path.join(root,'scripts/service-signal.cjs').replaceAll('\\','/');childEnv.NODE_OPTIONS=`${process.env.NODE_OPTIONS||''} --require "${hook}"`;}
   const child=spawn(process.execPath,[meta.cli,...args],{cwd:meta.cwd,env:childEnv,stdio:['pipe','inherit','inherit'],windowsHide:true});
-  let stopping=false;let exited=false;
+  let stopping=false;let exited=false;let initialized=false;let watch;
+  // Install listeners before the first await: a failed preload/CLI can exit immediately.
+  child.once('error',()=>{exited=true;meta.failed=true;if(initialized)void atomicJSON(stateFile(target),meta).then(()=>shutdown());});
+  child.once('exit',()=>{exited=true;if(initialized)void shutdown();});
   const identity=ps(process.pid);Object.assign(meta,{pid:process.pid,birth:identity?.birth,pgid:identity?.pgid,childPid:child.pid});await atomicJSON(stateFile(target),meta);
   async function shutdown(){
     if(stopping)return;stopping=true;
@@ -157,9 +160,8 @@ async function supervise(target,instance) {
   }
   function otherGroupMembers(){try{return execFileSync('ps',['-axo','pid=,pgid=,stat=,comm='],{encoding:'utf8'}).split('\n').some(line=>{const f=line.trim().split(/\s+/);return Number(f[1])===process.pid&&Number(f[0])!==process.pid&&!f[2]?.includes('Z')&&!f[3]?.endsWith('/ps')&&f[3]!=='ps';});}catch{return false;}}
   process.on('SIGTERM',()=>void shutdown());process.on('SIGINT',()=>void shutdown());
-  child.once('error',()=>{meta.failed=true;void atomicJSON(stateFile(target),meta).then(()=>shutdown());});
-  child.once('exit',()=>{exited=true;void shutdown();});
-  const watch=setInterval(()=>{void stat(marker).then(()=>shutdown(),()=>{});},300);
+  watch=setInterval(()=>{void stat(marker).then(()=>shutdown(),()=>{});},300);
+  initialized=true;if(exited)void shutdown();
 }
 try {
   if(action==='supervise'){await supervise(requested,options[0]);}

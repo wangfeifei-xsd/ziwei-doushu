@@ -18,6 +18,16 @@ async function main(){
  for(const base of ['tauri://localhost','http://localhost:3000','https://127.0.0.1','https://localhost'])assert.equal(publicShareLink(base,form),'');
  for(const url of ['https://example.com/chart?profile='+data.profiles[0].id,'javascript:alert(1)','https://example.com/other?y=2000'])assert.throws(()=>parseShareLink(url));
  const info=formToBirthInfo(form);assert.equal(info.day,1);assert.equal(info.month,2);assert.equal(info.origInput?.day,31);
+ const originalTZ=process.env.TZ;
+ try {
+  // Apia skipped 2011-12-30 locally; birth calendar arithmetic must still produce that date.
+  for(const zone of ['UTC','Asia/Shanghai','America/New_York','Pacific/Apia']){
+   process.env.TZ=zone;
+   const next=formToBirthInfo({...form,year:'2011',month:'12',day:'29',clockHour:'23'});
+   assert.deepEqual([next.year,next.month,next.day],[2011,12,30],zone);
+   assert.equal(next.origInput?.day,29);
+  }
+ } finally {if(originalTZ===undefined)delete process.env.TZ;else process.env.TZ=originalTZ;}
  assert.equal(ALL_BOOKS.length,3);assert.equal(ALL_BOOKS.reduce((sum,book)=>sum+book.chapters.length,0),21);assert.ok(searchClassics('紫微').length>0);
  for(const mode of ['chat','responses'] as const){
   const request=requestBody(mode,'fixture',[{role:'system',content:'system'},{role:'user',content:'你好'}]);

@@ -16,6 +16,7 @@ node_modules
 apps/*/public/
 apps/*/.next/
 apps/native/src-tauri/target/
+apps/native/src-tauri/gen/schemas/
 apps/native/src-tauri/gen/android/.gradle/
 apps/native/src-tauri/gen/android/**/build/
 apps/native/src-tauri/gen/apple/build/

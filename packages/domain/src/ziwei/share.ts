@@ -38,14 +38,14 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
   let m = parseInt(form.month) || 0;
   let d = parseInt(form.day) || 0;
 
-  // 晚子时（23:00-23:59）按次日处理：用 Date 对象自动处理月末/年末进位
+  // 只做公历进位，避免设备时区的夏令时/跳日改变出生日期。
   if (!form.unknownTime) {
     const clockHour = parseInt(form.clockHour) || 0;
     if (clockHour === 23 && y > 0 && m > 0 && d > 0) {
-      const next = new Date(y, m - 1, d + 1);
-      y = next.getFullYear();
-      m = next.getMonth() + 1;
-      d = next.getDate();
+      const next = new Date(Date.UTC(y, m - 1, d + 1));
+      y = next.getUTCFullYear();
+      m = next.getUTCMonth() + 1;
+      d = next.getUTCDate();
     }
   }
 
