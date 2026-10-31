@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
-# PowerShell's native-command job waits for detached descendants too. Wait for
-# only the Node manager here; its supervisor owns the long-running service.
+# ShellExecute starts without inheriting PowerShell's pipeline handles. Even
+# redirected ProcessStartInfo pipes can leak the caller's handles on Windows
+# PowerShell 5.1, keeping captured output open after this script has exited.
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
 function Quote-WindowsArgument([string] $Value) {
@@ -12,26 +13,27 @@ function Quote-WindowsArgument([string] $Value) {
 
 $node = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Path
 if (-not (Test-Path -LiteralPath $node -PathType Leaf)) { throw 'Cannot locate the Node.js executable.' }
-$serviceArgs = @((Join-Path $PSScriptRoot 'service.mjs')) + $args
+$outputDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ('ziwei-service-' + [guid]::NewGuid().ToString('N'))
+[void] [System.IO.Directory]::CreateDirectory($outputDirectory)
+$serviceArgs = @((Join-Path $PSScriptRoot 'service-windows.mjs'), $outputDirectory) + $args
 $start = [System.Diagnostics.ProcessStartInfo]::new()
 $start.FileName = $node
 $start.WorkingDirectory = (Get-Location).ProviderPath
 $start.Arguments = ($serviceArgs | ForEach-Object { Quote-WindowsArgument ([string] $_) }) -join ' '
-$start.UseShellExecute = $false
-$start.CreateNoWindow = $true
-$start.RedirectStandardOutput = $true
-$start.RedirectStandardError = $true
-$start.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
-$start.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false)
+$start.UseShellExecute = $true
+$start.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
 $process = [System.Diagnostics.Process]::new()
 $process.StartInfo = $start
 try {
     [void] $process.Start()
-    $output = $process.StandardOutput.ReadToEndAsync()
-    $errors = $process.StandardError.ReadToEndAsync()
     $process.WaitForExit()
-    [Console]::Out.Write($output.GetAwaiter().GetResult())
-    [Console]::Error.Write($errors.GetAwaiter().GetResult())
+    $outputPath = Join-Path $outputDirectory 'stdout.log'
+    $errorPath = Join-Path $outputDirectory 'stderr.log'
+    if (Test-Path -LiteralPath $outputPath) { [Console]::Out.Write([System.IO.File]::ReadAllText($outputPath, [System.Text.Encoding]::UTF8)) }
+    if (Test-Path -LiteralPath $errorPath) { [Console]::Error.Write([System.IO.File]::ReadAllText($errorPath, [System.Text.Encoding]::UTF8)) }
     $code = $process.ExitCode
-} finally { $process.Dispose() }
+} finally {
+    $process.Dispose()
+    Remove-Item -LiteralPath $outputDirectory -Recurse -Force -ErrorAction SilentlyContinue
+}
 exit $code
