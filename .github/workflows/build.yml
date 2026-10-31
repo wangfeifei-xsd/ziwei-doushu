@@ -308,7 +308,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - name: Preserve iOS launch diagnostics
-        if: failure()
+        if: always() && (failure() || cancelled())
         uses: actions/upload-artifact@v4
         with:
           name: ios-diagnostics-${{ github.sha }}
