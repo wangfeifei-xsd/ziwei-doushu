@@ -1,6 +1,7 @@
 'use client';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import BirthForm, { type BirthFormState } from '@/components/BirthForm';
 import { formToBirthInfo } from '@/lib/ziwei/share';
 import { generateChart as buildChart } from '@/lib/ziwei/algorithm';
@@ -26,12 +27,15 @@ function SavedProfileSelect({ side, profiles, selectedId, loading, onSelect }: {
         id={id}
         aria-label={`${side === 'a' ? '甲' : '乙'}方选择已保存档案`}
         value={selectedId ?? ''}
-        disabled={loading || profiles.length === 0}
+        disabled={loading || (profiles.length === 0 && !selectedId)}
         onChange={event => onSelect(profiles.find(profile => profile.id === event.target.value) ?? null)}
         className="input-base"
         style={{ width: '100%', minWidth: 0, fontSize: '13px', textOverflow: 'ellipsis' }}
       >
         <option value="">{loading ? '正在读取档案…' : '手动填写出生信息'}</option>
+        {selectedId && !profiles.some(profile => profile.id === selectedId) && (
+          <option value={selectedId}>已填入的档案资料（原档案已移除）</option>
+        )}
         {profiles.map(({ id: profileId, form }) => (
           <option key={profileId} value={profileId}>
             {form.name || '未命名档案'} · {form.gender === 'male' ? '男' : '女'} · {form.year}/{form.month}/{form.day}
@@ -210,8 +214,9 @@ export default function HemingPage() {
   }, [chartA, chartB, formA, formB, generateChart]);
 
   const cardStyle = {
-    background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.9)',
-    border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(200,160,60,0.2)'}`,
+    minWidth: 0,
+    background: 'var(--bg-card)',
+    border: '1px solid var(--bdr-med)',
     borderRadius: '16px',
     padding: '24px',
   };
@@ -222,38 +227,14 @@ export default function HemingPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-0)' }}>
-      {/* 顶栏 */}
-      <header style={{
-        position: 'sticky', top: 0, zIndex: 50,
-        background: isDark ? 'rgba(2,8,16,0.88)' : 'rgba(250,245,235,0.92)',
-        backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid var(--bdr)',
-        display: 'flex', alignItems: 'center', padding: '0 24px', height: '52px', gap: '16px',
-      }}>
-        <button
-          onClick={() => router.push('/')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px',
-            color: 'var(--tx-3)', background: 'none', border: 'none', cursor: 'pointer',
-          }}
-        >
-          <span style={{ fontSize: '16px' }}>‹</span>
-          <span>返回</span>
-        </button>
-        <div style={{ width: '1px', height: '20px', background: 'var(--bdr-med)' }} />
-        <span style={{ fontSize: '12px', color: 'var(--ac)', letterSpacing: '0.2em' }}>合盘分析</span>
-        <div style={{ flex: 1 }} />
-        <span style={{ fontSize: '11px', color: 'var(--tx-3)' }}>感情 · 合伙 · 亲子 · 朋友</span>
-      </header>
-
+    <div className="heming-page" style={{ minHeight: '100vh', background: 'var(--bg-0)' }}>
       {/* 主体 */}
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 24px 80px' }}>
 
         {/* 标题 */}
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
           <div style={{ fontSize: '28px', color: 'var(--ac)', opacity: 0.15, marginBottom: '12px' }}>☯</div>
-          <h1 style={{ fontSize: '22px', fontWeight: 600, letterSpacing: '0.15em', color: 'var(--tx-0)', marginBottom: '8px' }}>
+          <h1 style={{ fontSize: '34px', fontWeight: 500, letterSpacing: '0.15em', color: 'var(--tx-0)', marginBottom: '8px' }}>
             紫微合盘
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--tx-3)', lineHeight: 1.6 }}>
@@ -275,11 +256,9 @@ export default function HemingPage() {
             </button>
           </div>
           {profilesError && <p role="alert" style={{ marginTop: '8px', color: isDark ? '#f87171' : '#dc2626' }}>{profilesError}</p>}
-          {!profilesLoading && !profilesError && profiles.length === 0 && (
-            <a href="/qipan" style={{ display: 'inline-block', marginTop: '8px', color: 'var(--ac)' }}>
-              去起盘页保存档案 →
-            </a>
-          )}
+          <Link href="/profiles" style={{ display: 'inline-block', marginTop: '8px', color: 'var(--ac)' }}>
+            管理出生档案 →
+          </Link>
         </div>
 
         {/* 双栏表单 */}

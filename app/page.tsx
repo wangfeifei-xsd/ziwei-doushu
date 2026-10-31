@@ -1,190 +1,56 @@
-'use client';
-import { useLayoutEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import StarField from '@/components/StarField';
-import { useTheme, type Theme } from '@/components/ThemeProvider';
+import Link from 'next/link';
 import AnnouncementModal from '@/components/AnnouncementModal';
-import ThemeToggle from '@/components/ThemeToggle';
+import CelestialWheel from '@/components/CelestialWheel';
 
-// ─── 主星数据 ────────────────────────────────────────────
-const STARS = [
-  { name: '紫微' }, { name: '天机' }, { name: '太阳' }, { name: '武曲' },
-  { name: '天同' }, { name: '廉贞' }, { name: '天府' }, { name: '太阴' },
-  { name: '贪狼' }, { name: '巨门' }, { name: '天相' }, { name: '天梁' },
-  { name: '七杀' }, { name: '破军' },
+const FEATURES = [
+  { href: '/qipan', number: '壹', title: '紫微起盘', subtitle: '一纸命盘，观人生万象', text: '输入生辰，安星定宫，探索属于你的星曜格局。', icon: 'chart' },
+  { href: '/heming', number: '贰', title: '双人合盘', subtitle: '两盘相照，知相处之道', text: '从双方命盘出发，理解关系中的默契与成长。', icon: 'moon' },
+  { href: '/library', number: '叁', title: '古籍原典', subtitle: '溯源经典，研习星学', text: '读古籍原文，循倪师之法，在经典中寻得启发。', icon: 'book' },
 ];
 
-// ─── 主题色彩 helper ─────────────────────────────────────
-function useColors(theme: Theme) {
-  const d = theme === 'dark';
-  return {
-    bgBase:       d ? '#020810'                                : '#f5efe0',
-    // nav 用与 bgBase 完全相同的不透明色，避免半透明叠加产生色差带
-    navBg:        d ? '#020810'                                : '#f5efe0',
-    navBorder:    d ? 'rgba(255,255,255,0.05)'                : 'rgba(160,120,30,0.15)',
-    goldSolid:    d ? '#d4a843'                               : '#8b6410',
-    goldLine:     d ? 'rgba(212,168,67,0.4)'                  : 'rgba(140,100,20,0.4)',
-    tagText:      d ? 'rgba(212,168,67,0.6)'                  : 'rgba(120,80,10,0.65)',
-    // 亮色文字用冷灰系（A 方案核心）：暖底 + 冷字 → 视觉不审美疲劳
-    textSecond:   d ? '#b8c6df'                               : '#3a3f4a',
-    textMuted:    d ? '#9db0d0'                               : '#5a6275',
-    glowTint:     d ? 'rgba(212,168,67,0.07)'                 : 'rgba(180,140,40,0.06)',
-    // 亮色 glow 真用蓝/紫——给整体氛围加冷色点缀
-    glowBlue:     d ? 'rgba(40,80,160,0.12)'                  : 'rgba(58,90,130,0.06)',
-    glowPurple:   d ? 'rgba(120,50,180,0.08)'                 : 'rgba(96,80,140,0.04)',
-    starBg:       d ? 'rgba(255,255,255,0.04)'                : 'rgba(255,255,255,0.7)',
-    starBorder:   d ? 'rgba(212,168,67,0.22)'                 : 'rgba(160,120,30,0.3)',
-    starText:     d ? 'rgba(212,168,67,0.7)'                  : 'rgba(120,80,10,0.7)',
-    ctaBg:        d ? 'linear-gradient(135deg,#b8892a,#f0d070,#b8892a)'
-                    : 'linear-gradient(135deg,#6a4206,#9a6810,#6a4206)',
-    ctaText:      d ? '#08080a'                               : '#f8f3e8',
-  };
-}
-
-// ─── 主页 ─────────────────────────────────────────────────
 export default function HomePage() {
-  const router = useRouter();
-  const { theme } = useTheme();
-  const c = useColors(theme);
-
-  const heroRef = useRef(null);
-  const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
-  const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '28%']);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.55], [1, 0]);
-
-  // 把 body / html 背景同步到 home 主题色，消除半透明 nav 透出 #fafaf9 的色差
-  // useLayoutEffect 保证在浏览器绘制前同步更新，避免与根 div 的 transition 不同步
-  useLayoutEffect(() => {
-    document.documentElement.style.background = c.bgBase;
-    document.body.style.background = c.bgBase;
-    return () => {
-      document.documentElement.style.background = '';
-      document.body.style.background = '';
-    };
-  }, [c.bgBase]);
-
   return (
-    <div style={{ background: c.bgBase, transition: 'background 0.35s ease' }} className="overflow-x-hidden">
-      {/* 致用户公告——首次访问全屏覆盖，关闭后才进入首页 */}
+    <div className="home-page">
       <AnnouncementModal />
-
-      <StarField />
-
-      {/* 全局光晕 */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full"
-          style={{ background: `radial-gradient(ellipse, ${c.glowTint} 0%, transparent 70%)` }} />
-        <div className="absolute top-1/3 left-1/4 w-96 h-96 rounded-full"
-          style={{ background: `radial-gradient(ellipse, ${c.glowBlue} 0%, transparent 70%)` }} />
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full"
-          style={{ background: `radial-gradient(ellipse, ${c.glowPurple} 0%, transparent 70%)` }} />
-      </div>
-
-      {/* ── 顶部导航 ── nav 与 hero 同色（c.bgBase），无 blur 无 border，彻底无色差带 */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-8 py-3 sm:py-4 gap-2"
-        style={{
-          background: c.navBg,
-        }}>
-        <div className="text-[11px] sm:text-xs tracking-[0.3em] sm:tracking-[0.4em] font-medium transition-colors duration-300 flex-shrink-0"
-          style={{ color: c.goldSolid }}>
-          紫微命盘
+      <section className="home-hero">
+        <div className="hero-landscape" aria-hidden="true" />
+        <div className="home-hero-inner">
+          <div className="hero-copy">
+            <p className="eyebrow"><span />观天之道 · 执天之行</p>
+            <h1><span>以星为引</span><br />观照人生<span className="title-seal" aria-hidden="true">紫微</span></h1>
+            <p className="hero-lead">紫微为门，天地人为路，倪海厦为师。</p>
+            <p className="hero-description">循星曜之序，探人生之理。<br />以传统星命智慧，照见人生的轨迹与可能。</p>
+            <div className="hero-ctas">
+              <Link href="/qipan" className="button-gold">开启我的命盘 <span aria-hidden="true">↗</span></Link>
+              <Link href="/knowledge" className="hero-secondary">探索紫微知识 <span aria-hidden="true">→</span></Link>
+            </div>
+            <div className="hero-footnote"><span />倪海厦体系 <i />真太阳时校正 <i />AI 深度解读</div>
+          </div>
+          <div className="hero-atlas">
+            <div className="atlas-orbit" aria-hidden="true" />
+            <CelestialWheel />
+            <span className="atlas-caption">星垂于野 · 道在其中</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
-          <ThemeToggle />
-          <motion.button
-            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-            onClick={() => router.push('/heming')}
-            className="text-[11px] sm:text-xs px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-full transition-all duration-300"
-            style={{ border: `1px solid ${c.navBorder}`, color: c.textMuted }}>
-            合盘
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-            onClick={() => router.push('/qipan')}
-            className="text-[11px] sm:text-xs px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-full transition-all duration-300"
-            style={{ border: `1px solid ${c.goldLine}`, color: c.goldSolid }}>
-            立即起盘
-          </motion.button>
-        </div>
-      </nav>
-
-      {/* ══ HERO ══════════════════════════════════════════ */}
-      <section ref={heroRef} className="relative min-h-svh flex flex-col items-center justify-center px-6 z-10 pb-24 pt-10">
-        <motion.div style={{ y: heroY, opacity: heroOpacity, maxWidth: '960px' }} className="text-center w-full mx-auto mt-10">
-          {/* 标签行 */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="flex items-center justify-center gap-3 mb-8">
-            <div className="h-px w-12" style={{ background: `linear-gradient(to right, transparent, ${c.goldLine})` }} />
-            <span className="text-[11px] tracking-[0.45em] transition-colors duration-300" style={{ color: c.tagText }}>
-              紫微斗数 · 倪海厦体系
-            </span>
-            <div className="h-px w-12" style={{ background: `linear-gradient(to left, transparent, ${c.goldLine})` }} />
-          </motion.div>
-
-          {/* 主标题 */}
-          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            style={{ position: 'relative', display: 'inline-block' }}>
-            <h1
-              className={`grad-text ${theme === 'dark' ? 'grad-text-dark' : 'grad-text-light'} font-bold leading-none mb-5`}
-              style={{
-                fontSize: 'clamp(56px, 10vw, 124px)',
-                letterSpacing: '0.07em',
-              }}>
-              紫微命盘
-            </h1>
-          </motion.div>
-
-          <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.45 }}
-            className="text-base md:text-lg tracking-[0.18em] mb-2"
-            style={{ color: c.textSecond, fontWeight: 500 }}>
-            紫微为门 · 天地人为路 · 倪海厦为师
-          </motion.p>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            transition={{ duration: 0.7, delay: 0.55 }}
-            className="text-xs md:text-sm tracking-[0.3em] mb-6"
-            style={{ color: c.textMuted, opacity: 0.85 }}>
-            AI 答疑 · 知行合一
-          </motion.p>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            transition={{ duration: 0.7, delay: 0.65 }}
-            className="text-sm max-w-xl mx-auto leading-relaxed mb-10"
-            style={{ color: c.textMuted }}>
-            输入出生年月日时，生成专属紫微斗数命盘 — 后续天纪、地纪、人纪学习模块陆续开放。
-          </motion.p>
-
-          {/* CTA */}
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.85 }}
-            className="flex flex-col items-center gap-4">
-            <motion.button
-              whileHover={{ y: -2, filter: 'brightness(1.06)' }} whileTap={{ scale: 0.97 }}
-              onClick={() => router.push('/qipan')}
-              className="px-12 py-4 font-semibold text-base tracking-widest rounded-full"
-              style={{ background: c.ctaBg, color: c.ctaText }}>
-              立即起盘
-            </motion.button>
-          </motion.div>
-
-          {/* 十四主星 */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            transition={{ delay: 1.05, duration: 0.8 }}
-            className="mt-12 grid grid-cols-7 gap-1.5 max-w-[540px] mx-auto">
-            {STARS.map((star, i) => (
-              <motion.div key={star.name}
-                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1.05 + i * 0.03, duration: 0.35 }}
-                className="flex items-center justify-center px-2 py-1 rounded-full"
-                style={{ background: c.starBg, border: `1px solid ${c.starBorder}` }}>
-                <span className="text-[11px] tracking-wide" style={{ color: c.starText }}>{star.name}</span>
-              </motion.div>
-            ))}
-          </motion.div>
-        </motion.div>
       </section>
+      <div className="home-content">
+        <div className="principles-strip">
+          {[
+            ['✧', '十四主星', '星曜流转，洞见本质'], ['◎', '十二宫位', '人生万象，各有所居'],
+            ['☷', '倪师体系', '承经典之脉，明天地之理'], ['◇', '知行合一', '知命而行，照见自己'],
+          ].map(([icon, title, text]) => <div key={title}><span className="principle-icon" aria-hidden="true">{icon}</span><div><h2>{title}</h2><p>{text}</p></div></div>)}
+        </div>
+        <div className="home-features">
+          {FEATURES.map(feature => <Link href={feature.href} className="feature-card" key={feature.href}>
+            <div className={`feature-art feature-art-${feature.icon}`} aria-hidden="true">
+              {feature.icon === 'chart' ? <CelestialWheel compact /> : feature.icon === 'moon' ? <svg viewBox="0 0 120 120" fill="none"><circle cx="46" cy="60" r="32" stroke="currentColor" strokeWidth=".8" /><circle cx="76" cy="60" r="32" stroke="currentColor" strokeWidth=".8" /><circle cx="46" cy="60" r="24" stroke="currentColor" strokeWidth=".5" strokeDasharray="2 4" /><path d="M46 28a32 32 0 0 1 0 64 25 25 0 0 0 0-64Z" fill="currentColor" opacity=".12" /></svg> : <svg viewBox="0 0 120 120" fill="none" stroke="currentColor"><path d="M17 29c20-7 30-5 43 4 13-9 23-11 43-4v65c-20-7-30-5-43 3-13-8-23-10-43-3Z" strokeWidth="1" /><path d="M60 33v64M26 42c11-3 18-1 26 3M26 53c11-3 18-1 26 3M26 64c11-3 18-1 26 3M26 75c11-3 18-1 26 3M69 45c8-4 15-6 26-3M69 56c8-4 15-6 26-3M69 67c8-4 15-6 26-3M69 78c8-4 15-6 26-3" strokeWidth=".7" /></svg>}
+            </div>
+            <div className="feature-copy"><p className="feature-number">{feature.number} · {feature.subtitle}</p><h2>{feature.title}</h2><p>{feature.text}</p></div>
+            <span className="feature-arrow" aria-hidden="true">↗</span>
+          </Link>)}
+        </div>
+        <footer className="home-footer"><span>紫微为门 · 知行合一</span><div><Link href="/privacy">隐私政策</Link><span>·</span><Link href="/terms">服务条款</Link></div></footer>
+      </div>
     </div>
   );
 }

@@ -10,8 +10,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:ai": "tsx scripts/regression/ai-stream.test.ts",
+    "test:model-config": "tsx scripts/regression/model-config.test.ts",
     "test:profiles": "tsx scripts/regression/profiles.test.ts",
-    "test": "npm run test:ai && npm run test:profiles && tsx scripts/regression/pan-integrity.test.ts && tsx scripts/regression/dst-cn.test.ts && tsx scripts/regression/clock-adjust.test.ts && tsx scripts/regression/sizhu-lichun-boundary.test.ts && tsx scripts/regression/hongluan-tianxi.test.ts && tsx scripts/regression/famous-hour-consistency.test.ts && tsx scripts/regression/iztro-time-index-boundary.test.ts && tsx scripts/regression/solar-date-exists.test.ts && tsx scripts/regression/natal-dual-sihua-same-palace.test.ts && tsx scripts/regression/neutral-naming.test.ts"
+    "test": "npm run test:ai && npm run test:model-config && npm run test:profiles && tsx scripts/regression/pan-integrity.test.ts && tsx scripts/regression/dst-cn.test.ts && tsx scripts/regression/clock-adjust.test.ts && tsx scripts/regression/sizhu-lichun-boundary.test.ts && tsx scripts/regression/hongluan-tianxi.test.ts && tsx scripts/regression/famous-hour-consistency.test.ts && tsx scripts/regression/iztro-time-index-boundary.test.ts && tsx scripts/regression/solar-date-exists.test.ts && tsx scripts/regression/natal-dual-sihua-same-palace.test.ts && tsx scripts/regression/neutral-naming.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",

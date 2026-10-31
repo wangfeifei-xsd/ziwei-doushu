@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './celestial.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { SITE_URL } from '@/lib/site';
+import SiteHeader from '@/components/SiteHeader';
 
 export const metadata: Metadata = {
   title: '紫微命盘 · 倪海厦正宗紫微斗数',
@@ -44,7 +46,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen">
         <ThemeProvider>
-          {children}
+          <SiteHeader />
+          <div className="site-content">{children}</div>
         </ThemeProvider>
         <Analytics />
         <SpeedInsights />

@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import BirthForm, { type BirthFormState } from '@/components/BirthForm';
 import ChartBoard from '@/components/ChartBoard';
 import InsightPanel from '@/components/InsightPanel';
-import TimeNav, { type TimeView } from '@/components/TimeNav';
 import { generateChart } from '@/lib/ziwei/algorithm';
 import type { BirthInfo, ZiweiChart, Palace } from '@/lib/ziwei/types';
 import { formToBirthInfo, searchParamsToForm } from '@/lib/ziwei/share';
@@ -27,8 +26,6 @@ function ChartContent() {
   const query = searchParams.toString();
   const [chart, setChart] = useState<ZiweiChart | null>(null);
   const [selectedPalace, setSelectedPalace] = useState<Palace | null>(null);
-  const [view, setView] = useState<TimeView>('mingpan');
-  const [liunianYear, setLiunianYear] = useState(() => new Date().getFullYear());
   const [loading, setLoading] = useState(Boolean(query));
   const [error, setError] = useState('');
   const [initialForm, setInitialForm] = useState<BirthFormState | undefined>();
@@ -38,7 +35,6 @@ function ChartContent() {
     setError('');
     setChart(null);
     setSelectedPalace(null);
-    setView('mingpan');
     if (!query) { setLoading(false); return () => controller.abort(); }
     setLoading(true);
     const open = async () => {
@@ -78,50 +74,32 @@ function ChartContent() {
     return <main className="mx-auto max-w-3xl px-5 py-12"><p role="status">正在读取出生资料并起盘…</p></main>;
   }
 
-  // ── 未起盘：展示出生信息表单 ──
   if (!chart) {
     return (
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: '48px 20px' }}>
-        <Link href="/qipan" className="mb-6 inline-block text-sm" style={{ color: 'var(--ac)' }}>← 返回起盘与档案</Link>
-        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>紫微斗数排盘</h1>
-        <p style={{ color: '#888', marginBottom: 32, fontSize: 14, lineHeight: 1.7 }}>
-          输入出生年月日时，开源排盘引擎即时生成命盘。
-          <br />
-          （本页为引擎 Demo，完整商业版界面不在开源范围；排盘内核完全开放。）
-        </p>
-        {error && <p role="alert" className="mb-5 text-sm text-red-500">{error}</p>}
+      <main className="chart-form-main">
+        <div className="chart-breadcrumb"><Link href="/qipan">紫微起盘</Link><span>/</span><span>生辰资料</span></div>
+        <p className="eyebrow"><span />安星定宫 · 观照人生</p>
+        <h1>开启你的紫微命盘</h1>
+        <p className="chart-form-description">填写出生资料，以星曜为引，探索十二宫位中的人生图景。<br />支持真太阳时校正，让每一颗星各归其位。</p>
+        {error && <p role="alert" className="mb-5 text-sm" style={{ color: 'var(--ji)' }}>{error}</p>}
         <BirthForm key={JSON.stringify(initialForm)} initialData={initialForm} onSubmit={submit} />
       </main>
     );
   }
 
-  // ── 已起盘：命盘 + 解读 ──
   return (
-    <main style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 16px' }}>
-      <Link href="/qipan" className="mr-4 inline-block text-sm" style={{ color: 'var(--ac)' }}>← 起盘与档案</Link>
-      <button
-        type="button"
-        onClick={() => {
-          setChart(null); setSelectedPalace(null); setError('');
-          setView('mingpan'); router.replace('/chart');
-        }}
-        style={{
-          marginBottom: 16, padding: '6px 14px', cursor: 'pointer',
-          border: '1px solid #ccc', borderRadius: 8, background: 'transparent',
-        }}
-      >
-        ← 重新起盘
-      </button>
-
-      <TimeNav
-        chart={chart}
-        view={view}
-        liunianYear={liunianYear}
-        onViewChange={setView}
-        onYearChange={setLiunianYear}
-      />
-
-      <div className="mt-4 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)]">
+    <main className="chart-main">
+      <div className="chart-breadcrumb"><Link href="/qipan">紫微起盘</Link><span>/</span><span>我的命盘</span></div>
+      <div className="chart-page-heading">
+        <div>
+          <h1>{chart.birthInfo.name ? `${chart.birthInfo.name}的` : '我的'}紫微命盘</h1>
+          <p>公历 {chart.birthInfo.year} 年 {chart.birthInfo.month} 月 {chart.birthInfo.day} 日<span className="mx-2">·</span>{chart.birthInfo.gender === 'male' ? '男命' : '女命'}<span className="mx-2">·</span>{chart.wuxingJuName}</p>
+        </div>
+        <button type="button" className="chart-restart" onClick={() => {
+          setChart(null); setSelectedPalace(null); setError(''); router.replace('/chart');
+        }}>↻ 重新起盘</button>
+      </div>
+      <div className="chart-layout">
         <ChartBoard chart={chart} onPalaceSelect={setSelectedPalace} />
         <InsightPanel chart={chart} selectedPalace={selectedPalace} />
       </div>

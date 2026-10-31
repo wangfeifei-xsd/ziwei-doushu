@@ -20,10 +20,10 @@ interface PalaceCellProps {
 }
 
 const SIHUA_STYLES: Record<string, string> = {
-  '禄': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
-  '权': 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-  '科': 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30',
-  '忌': 'text-red-400 bg-red-500/10 border-red-500/30',
+  '禄': 'badge-lu',
+  '权': 'badge-quan',
+  '科': 'badge-ke',
+  '忌': 'badge-ji',
 };
 
 const SiHuaBadge = ({
@@ -70,11 +70,16 @@ export default function PalaceCell({
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.35, delay, ease: 'easeOut' }}
       onClick={onClick}
-      className="relative flex flex-col p-1.5 cursor-pointer transition-all duration-200 h-full"
+      role="button"
+      tabIndex={0}
+      aria-label={`${name}，${majorStars.map(star => star.name).join('、') || '空宫'}`}
+      aria-pressed={isSelected}
+      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick?.(); } }}
+      className="palace-cell relative flex flex-col p-1.5 cursor-pointer transition-all duration-200 h-full"
       style={{
         minHeight: '90px',
         background: isCurrentDaXian
-          ? 'rgba(147,51,234,0.08)'
+          ? 'var(--ac-bg)'
           : isSelected
           ? 'rgba(37,99,235,0.18)'
           : isSanFang
@@ -83,7 +88,7 @@ export default function PalaceCell({
           ? 'rgba(212,168,67,0.04)'
           : 'var(--t-bg)',
         boxShadow: isCurrentDaXian
-          ? 'inset 3px 0 0 rgba(147,51,234,0.5)'
+          ? 'inset 3px 0 0 var(--ac)'
           : isSelected
           ? 'inset 0 0 0 1.5px rgba(37,99,235,0.7)'
           : isSanFang
@@ -95,7 +100,7 @@ export default function PalaceCell({
       {daXianAge && (
         <div className={clsx(
           'absolute top-1 right-1 text-[9px] font-mono tabular-nums',
-          isCurrentDaXian ? 'text-purple-400' : ''
+          isCurrentDaXian ? 'palace-period-age' : ''
         )}
           style={!isCurrentDaXian ? { color: 'var(--t-faint)', opacity: 0.75 } : undefined}
         >
@@ -104,9 +109,9 @@ export default function PalaceCell({
       )}
 
       {/* 宫名行 */}
-      <div className="flex items-center gap-1 mb-0.5 pr-8">
-        <span className={clsx('text-[10px] font-medium tracking-wide',
-          isMingGong ? 'text-amber-500' : isShenGong ? 'text-sky-500' : ''
+      <div className="palace-cell-name flex items-center gap-1 mb-0.5 pr-8">
+        <span className={clsx('text-[12px] font-medium tracking-wide',
+          isMingGong ? 'palace-ming-name' : isShenGong ? 'palace-shen-name' : ''
         )}
           style={!isMingGong && !isShenGong ? { color: 'var(--t-faint)' } : undefined}
         >
@@ -137,8 +142,8 @@ export default function PalaceCell({
               onClick={e => { e.stopPropagation(); onStarClick?.(star); }}
             >
               <span className={clsx(
-                'text-[13px] leading-tight font-bold tracking-tight cursor-pointer hover:brightness-125 transition-all',
-                star.brightness === 'bright' ? 'text-amber-300' : star.brightness === 'dim' ? 'text-amber-700/80' : 'text-amber-500',
+                'palace-primary-star text-[16px] leading-tight font-bold tracking-tight cursor-pointer hover:brightness-125 transition-all',
+                star.brightness === 'bright' ? 'palace-star-bright' : star.brightness === 'dim' ? 'palace-star-dim' : 'palace-star-neutral',
               )}>
                 {star.name}
               </span>
@@ -165,7 +170,7 @@ export default function PalaceCell({
           {luckyStars.map(s => {
             const overlaySiHua = overlayStarSiHua?.[s.name];
             return (
-              <span key={s.name} className="inline-flex items-center text-[9px] text-sky-500/70 leading-tight">
+              <span key={s.name} className="inline-flex items-center text-[10px] star-lucky leading-tight">
                 {s.name}
                 {s.siHua && <SiHuaBadge siHua={s.siHua} />}
                 {overlaySiHua && (
@@ -189,7 +194,7 @@ export default function PalaceCell({
       {shaStars.length > 0 && (
         <div className="flex flex-wrap gap-x-1">
           {shaStars.map(s => (
-            <span key={s.name} className="text-[9px] text-red-500/60 leading-tight">
+            <span key={s.name} className="text-[10px] star-sha leading-tight">
               {s.name}{s.siHua && <SiHuaBadge siHua={s.siHua} />}
             </span>
           ))}

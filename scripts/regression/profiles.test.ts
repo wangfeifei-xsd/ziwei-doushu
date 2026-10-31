@@ -58,16 +58,33 @@ async function main() {
     assert.deepEqual(generateChart(info).birthInfo, generateChart(formToBirthInfo(form)).birthInfo);
     const unknown = formToBirthInfo({ ...form, unknownTime: true });
     assert.deepEqual([unknown.year, unknown.month, unknown.day, unknown.hour], [2000, 1, 31, 0]);
-    assert.equal(await database.request('delete', id), true);
-    assert.equal(await database.request('get', id), null);
-    assert.equal(await database.request('delete', id), false);
+    const editedForm = parseProfileForm({ ...form, name: '修改后的档案', clockMinute: '45' });
+    const editedId = idFor(editedForm);
+    const edited = await database.request<BirthProfile>('update', id, JSON.stringify(editedForm), editedId);
+    assert.equal(edited.id, editedId, 'editing uses the hash of the new normalized data');
+    assert.deepEqual(edited.form, editedForm);
+    assert.equal(await database.request('get', id), null, 'the old archive is replaced');
+    assert.equal((await database.request<BirthProfile[]>('list')).length, 2, 'editing does not create an extra record');
+    assert.equal(await database.request('update', editedId, JSON.stringify(otherForm), otherId), 'duplicate', 'editing cannot overwrite another archive');
+    assert.deepEqual((await database.request<BirthProfile>('get', editedId)).form, editedForm, 'a rejected edit preserves the source');
+    assert.deepEqual((await database.request<BirthProfile>('get', otherId)).form, otherForm, 'a rejected edit preserves the target');
+    assert.equal((await database.request<BirthProfile>('update', editedId, JSON.stringify(editedForm), editedId)).id, editedId, 'an unchanged edit keeps one archive');
+    assert.equal(await database.request('update', id, JSON.stringify(form), id), null, 'editing a deleted archive does not recreate it');
+    await assert.rejects(database.request('update', editedId, JSON.stringify(form), 'invalid'), /无效/);
+    await database.close();
+    database = new H2Database(directory);
+    assert.deepEqual((await database.request<BirthProfile>('get', editedId)).form, editedForm, 'edited data persists after restart');
+    assert.deepEqual(formToBirthInfo(editedForm).origInput, { year: 2000, month: 1, day: 31, clockHour: 23, clockMinute: 45 }, 'editing preserves the original clock input');
+    assert.equal(await database.request('delete', editedId), true);
+    assert.equal(await database.request('get', editedId), null);
+    assert.equal(await database.request('delete', editedId), false);
     assert.equal((await database.request<BirthProfile[]>('list')).length, 1, 'deletion affects only the selected archive');
     await assert.rejects(database.request('get', "' OR 1=1 --"), /无效/);
   } finally {
     await database.close();
     await rm(directory, { recursive: true, force: true });
   }
-  console.log('✓ H2 档案回归通过：输入校验、中文读写、去重、多进程、重启持久化、晚子时与删除。');
+  console.log('✓ H2 档案回归通过：输入校验、中文读写、去重、多进程、重启持久化、原子编辑、重复保护、晚子时与删除。');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });

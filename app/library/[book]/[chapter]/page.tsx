@@ -32,8 +32,8 @@ export default async function ChapterPage({ params }: { params: Promise<{ book: 
   const nextIdx = chapterIdx + 1;
 
   return (
-    <div style={{ background: 'var(--bg-page)', minHeight: '100vh' }}>
-      <div className="px-6 py-4 flex items-center justify-between"
+    <div className="reading-page" style={{ background: 'var(--bg-page)', minHeight: '100vh' }}>
+      <div className="reading-breadcrumb px-6 py-4 flex items-center justify-between"
         style={{ borderBottom: '1px solid rgba(184,146,42,0.15)', background: 'var(--bg-page)' }}>
         <Link href={`/library/${book.slug}`} style={{ fontSize: '12px', color: 'var(--ac)', letterSpacing: '0.3em', textDecoration: 'none' }}>
           ← 《{book.title}》目录

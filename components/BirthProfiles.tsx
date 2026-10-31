@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import BirthForm, { type BirthFormState } from './BirthForm';
 import { type BirthProfile } from '@/lib/ziwei/profiles';
 import { formToSearchParams } from '@/lib/ziwei/share';
@@ -11,8 +12,6 @@ export default function BirthProfiles() {
   const [profiles, setProfiles] = useState<BirthProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
   const [notice, setNotice] = useState('');
@@ -58,33 +57,15 @@ export default function BirthProfiles() {
     } finally { setSaving(false); }
   };
 
-  const remove = async (id: string) => {
-    setDeleting(id);
-    setActionError('');
-    setNotice('');
-    try {
-      const response = await fetch(`/api/profiles/${id}`, { method: 'DELETE' });
-      if (!response.ok && response.status !== 404) {
-        const data = await response.json();
-        throw new Error(data.error || '删除失败，请重试。');
-      }
-      setProfiles(previous => previous.filter(profile => profile.id !== id));
-      setConfirmDelete(null);
-      setNotice('档案已删除。');
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : '删除失败，请重试。');
-    } finally { setDeleting(null); }
-  };
-
   return (
     <section id="birth-profiles" aria-labelledby="birth-profiles-title"
       className="relative z-10 mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <div className="mb-8 text-center">
         <h1 id="birth-profiles-title" className="text-2xl font-semibold tracking-widest" style={{ color: 'var(--ac)' }}>
-          起盘与档案
+          紫微起盘
         </h1>
         <p className="mt-3 text-sm" style={{ color: 'var(--tx-2)' }}>
-          保存出生资料，下次选择档案即可直接起盘。
+          填写出生资料，或从最近保存的档案中直接起盘。
         </p>
       </div>
       <div className="grid items-start gap-6 lg:grid-cols-2">
@@ -97,14 +78,14 @@ export default function BirthProfiles() {
         <div className={`rounded-3xl border p-5 sm:p-7 ${profiles.length ? 'order-first lg:order-none' : ''}`}
           style={{ borderColor: 'var(--bdr-med)', background: 'var(--bg-card)' }}>
           <div className="mb-2 flex items-center justify-between gap-3">
-            <h3 className="text-lg font-medium" style={{ color: 'var(--tx-0)' }}>已保存的档案</h3>
+            <h2 className="text-lg font-medium" style={{ color: 'var(--tx-0)' }}>最近保存的档案</h2>
             <button type="button" onClick={() => void load()} disabled={loading}
               className="text-sm disabled:opacity-50" style={{ color: 'var(--ac)' }}>
               {loading ? '读取中…' : '刷新'}
             </button>
           </div>
           <p className="mb-6 text-xs leading-relaxed" style={{ color: 'var(--tx-2)' }}>
-            档案保存在当前服务中，关闭或重启项目后仍可使用。
+            显示最近 4 份档案，更多资料可前往档案管理查看。
           </p>
           {loadError && <p role="alert" className="mb-4 text-sm text-red-500">{loadError}</p>}
           {!loading && !loadError && profiles.length === 0 && (
@@ -114,7 +95,7 @@ export default function BirthProfiles() {
             </div>
           )}
           <ul className="max-h-[620px] space-y-3 overflow-y-auto" aria-label="已保存的档案">
-            {profiles.map(profile => {
+            {profiles.slice(0, 4).map(profile => {
               const { form } = profile;
               const title = form.name || '未命名档案';
               return (
@@ -133,20 +114,14 @@ export default function BirthProfiles() {
                       {' · '}{[form.province, form.city].filter(Boolean).join(' ') || '未填写出生地'}
                     </span>
                   </button>
-                  <div className="mt-3 flex items-center justify-end gap-3 text-xs">
-                    {confirmDelete === profile.id ? <>
-                      <span style={{ color: 'var(--tx-2)' }}>确定删除？</span>
-                      <button type="button" onClick={() => void remove(profile.id)} disabled={deleting === profile.id}
-                        className="text-red-500 disabled:opacity-50">{deleting === profile.id ? '删除中…' : '确定删除'}</button>
-                      <button type="button" onClick={() => setConfirmDelete(null)} disabled={deleting === profile.id}
-                        style={{ color: 'var(--tx-2)' }}>取消</button>
-                    </> : <button type="button" onClick={() => setConfirmDelete(profile.id)}
-                      aria-label={`删除${title}档案`} style={{ color: 'var(--tx-2)' }}>删除档案</button>}
-                  </div>
                 </li>
               );
             })}
           </ul>
+          <Link href="/profiles" className="mt-5 flex items-center justify-between rounded-xl border px-4 py-3 text-sm"
+            style={{ color: 'var(--ac)', borderColor: 'var(--ac-bdr)', background: 'var(--ac-bg)' }}>
+            <span>档案管理{profiles.length > 0 ? ` · 全部 ${profiles.length} 份` : ''}</span><span aria-hidden="true">→</span>
+          </Link>
         </div>
       </div>
     </section>

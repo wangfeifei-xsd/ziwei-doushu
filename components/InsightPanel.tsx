@@ -164,7 +164,7 @@ function AiContent({ text, streaming }: { text: string; streaming?: boolean }) {
         if (line.trim() === '') return <div key={i} className="h-1" />;
         const parts = line.split(/\*\*(.+?)\*\*/);
         return (
-          <div key={i} className="text-[11px] leading-relaxed" style={{ color: 'var(--t-text2)' }}>
+          <div key={i} className="ai-line text-[13px] leading-relaxed" style={{ color: 'var(--t-text2)' }}>
             {parts.map((part, j) =>
               j % 2 === 0
                 ? part
@@ -323,11 +323,16 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
   };
 
   return (
-    <div className="flex flex-col h-full rounded-xl overflow-hidden card-glass">
+    <div className="insight-panel flex flex-col h-full rounded-xl overflow-hidden card-glass">
 
+      <div className="insight-heading">
+        <p className="eyebrow">以盘为镜 · 以理为引</p>
+        <h2>命盘解读</h2>
+        <p>循倪师体系，结合星曜与宫位，探索人生的更多可能。</p>
+      </div>
       {/* ── Topic buttons ── */}
       <div className="flex-shrink-0 px-2 pt-2.5 pb-2" style={{ borderBottom: '1px solid var(--t-border)' }}>
-        <div className="grid grid-cols-6 gap-1">
+        <div className="insight-topics grid grid-cols-3 gap-1">
           {TOPICS.map(t => {
             const isActive = activeTopic === t.key;
             return (
@@ -349,6 +354,13 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
         </div>
       </div>
 
+      {!loading && messages.length <= 2 && <div className="px-4">
+        <div className="insight-prompts">
+          {[['overview', '整体命盘格局', '了解我的星曜与人生主轴'], ['career', '事业发展方向', '探索天赋与适合的发展方向'], ['wealth', '财富与机遇', '认识财帛宫中的星曜格局'], ['love', '感情与相处', '理解关系中的缘分与成长']].map(([key, title, hint]) =>
+            <button key={key} type="button" onClick={() => handleTopicClick(key)}><strong>{title} ↗</strong><span>{hint}</span></button>
+          )}
+        </div>
+      </div>}
       {/* ── Messages ── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
 
@@ -418,7 +430,7 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
             placeholder="继续追问，如：今年适合换工作吗？"
             disabled={loading}
-            className="flex-1 rounded-lg px-3 py-2 text-[11px] focus:outline-none transition-colors"
+            aria-label="命盘解读追问" className="flex-1 rounded-lg px-3 py-2 text-[12px] focus:outline-none transition-colors"
             style={{
               background: 'var(--t-card)',
               border: '1px solid var(--t-border)',

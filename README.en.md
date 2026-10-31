@@ -70,7 +70,7 @@ npm run typecheck    # TypeScript check
 npm test             # charting regression tests
 ```
 
-**No API key is needed for charting.** This local version includes streaming AI interpretation (`/api/interpret`) and compatibility analysis (`/api/heming`). Set `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, and `OPENAI_API_MODE` in `.env.local`, then restart the server. Use `responses` mode for the Responses API or `chat` for Chat Completions. Keys remain on the server. Run `npm run test:ai` for stream parsing regression tests without calling a real model.
+**No API key is needed for charting.** This local version includes streaming AI interpretation (`/api/interpret`) and compatibility analysis (`/api/heming`). Open **Model settings** (`/settings/model`, the gear icon in navigation) to set the API base URL, key, model ID, and API mode. Test the connection, then save to apply immediately without restarting. Saved settings take precedence over `.env.local` and persist in `data/ai-config.json` (or `AI_CONFIG_DIR`, falling back to `H2_DATA_DIR`). The settings page displays the current API key directly for copying or editing; leaving it blank preserves the existing one. You can still set environment defaults with `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, and `OPENAI_API_MODE`, then restart the server. Use `responses` for the Responses API or `chat` for Chat Completions. Run `npm run test:ai` for stream parsing regression tests without calling a real model.
 
 ## What is not included
 

@@ -4,90 +4,95 @@
 
 /* ─── 2.0 设计系统 Token ─────────────────────────────────── */
 :root {
-  /* 字体 */
-  --font: -apple-system, 'PingFang SC', 'Helvetica Neue', 'Segoe UI', sans-serif;
-  --font-mono: 'SF Mono', 'Menlo', 'Noto Sans Mono', 'Consolas', monospace;
-
-  /* 背景层级 */
-  --bg-0: #FAFAF9;
-  --bg-1: #F4F3EF;
-  --bg-2: #ECEAE4;
-  --bg-inv: #0D0D0B;
-
-  /* 文字层级 */
-  --tx-0: #0D0D0B;
-  --tx-1: #1A1A18;
-  --tx-2: #4A4A45;
-  --tx-3: #8A8A82;
-  --tx-inv: #F0EDE8;
-  --tx-inv2: rgba(240,237,232,0.65);
-
-  /* 唯一强调色：墨金 */
-  --ac:     #B8922A;
-  --ac-dim: #7A5F1A;
-  --ac-bg:  rgba(184,146,42,0.07);
-  --ac-bdr: rgba(184,146,42,0.22);
-
-  /* 四化语义色（仅用于命盘数据，不用于UI装饰） */
-  --lu:   #2D7A4A;
-  --quan: #1A56A8;
-  --ke:   #8A7018;
-  --ji:   #A83228;
-
-  /* 边框 */
-  --bdr:      rgba(0,0,0,0.07);
-  --bdr-med:  rgba(0,0,0,0.11);
-  --bdr-heavy:rgba(0,0,0,0.18);
-
-  /* 阴影 */
-  --sh-xs: 0 1px 2px rgba(0,0,0,0.05);
-  --sh-sm: 0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
-  --sh-md: 0 4px 20px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.05);
-  --sh-lg: 0 12px 40px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.06);
-
-  /* 卡片/内容块背景 */
-  --bg-card: #FFFFFF;
-  --bg-page: #fbf6e8;
-
-  /* 圆角 */
-  --r-xs:  4px;
-  --r-sm:  8px;
-  --r-md:  12px;
-  --r-lg:  16px;
-  --r-xl:  24px;
-  --r-pill:999px;
+  --font: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  --font-serif: 'Songti SC', 'STSong', 'Noto Serif SC', 'SimSun', serif;
+  --font-mono: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  --bg-0: #f4f0e6;
+  --bg-1: #ede9de;
+  --bg-2: #e5e3d7;
+  --bg-inv: #182d26;
+  --bg-card: #fcfaf4;
+  --bg-page: #f4f0e6;
+  --tx-0: #203a30;
+  --tx-1: #30483c;
+  --tx-2: #59685a;
+  --tx-3: #71786b;
+  --tx-inv: #f2eddf;
+  --tx-inv2: rgba(242,237,223,.7);
+  --ac: #896635;
+  --ac-dim: #6f4f28;
+  --ac-bg: rgba(137,102,53,.07);
+  --ac-bdr: rgba(137,102,53,.3);
+  --button-bg: #29473b;
+  --button-text: #faf6ea;
+  --lu: #287255;
+  --quan: #38698d;
+  --ke: #8a651e;
+  --ji: #ae4b40;
+  --star-bright: #866023;
+  --star-neutral: #8b6934;
+  --star-dim: #7d7666;
+  --bdr: rgba(88,103,80,.14);
+  --bdr-med: rgba(106,109,77,.22);
+  --bdr-heavy: rgba(106,109,77,.34);
+  --sh-xs: 0 1px 2px rgba(39,54,41,.03);
+  --sh-sm: 0 3px 16px rgba(39,54,41,.035);
+  --sh-md: 0 8px 24px rgba(39,54,41,.06);
+  --sh-lg: 0 20px 64px rgba(39,54,41,.12);
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-pill: 999px;
+  /* The chart and interpretation components share the same theme tokens. */
+  --t-bg: var(--bg-card);
+  --t-surface: var(--bg-1);
+  --t-card: var(--bg-0);
+  --t-border: var(--bdr-med);
+  --t-gold: var(--ac);
+  --t-text: var(--tx-0);
+  --t-text1: var(--tx-1);
+  --t-text2: var(--tx-2);
+  --t-border-acc: var(--ac-bdr);
+  --t-faint: var(--tx-3);
+  color-scheme: light;
 }
 
-/* ─── 暗色模式 Token 覆盖 ──────────────────────────────── */
 [data-theme="dark"] {
-  --bg-0: #020810;
-  --bg-1: #0a1020;
-  --bg-2: #141e30;
-  --bg-inv: #f0ede8;
-
-  --tx-0: #e8eef6;
-  --tx-1: #dce4f0;
-  --tx-2: #9db0d0;
-  --tx-3: #6a7a96;
-  --tx-inv: #0d0d0b;
-  --tx-inv2: rgba(13,13,11,0.65);
-
-  --ac:     #d4a843;
-  --ac-dim: #e8c060;
-  --ac-bg:  rgba(212,168,67,0.10);
-  --ac-bdr: rgba(212,168,67,0.25);
-
-  --bdr:      rgba(255,255,255,0.07);
-  --bdr-med:  rgba(255,255,255,0.12);
-  --bdr-heavy:rgba(255,255,255,0.20);
-
-  --sh-xs: 0 1px 2px rgba(0,0,0,0.3);
-  --sh-sm: 0 2px 8px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3);
-  --sh-md: 0 4px 20px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.35);
-  --sh-lg: 0 12px 40px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.4);
-
-  --bg-card: rgba(255,255,255,0.04);
-  --bg-page: #020810;
+  --bg-0: #081716;
+  --bg-1: #0c1e1c;
+  --bg-2: #18302b;
+  --bg-inv: #e9e5d6;
+  --bg-card: #10221f;
+  --bg-page: #081716;
+  --tx-0: #eee9dc;
+  --tx-1: #d5dcce;
+  --tx-2: #a2b0a4;
+  --tx-3: #87998b;
+  --tx-inv: #10221f;
+  --tx-inv2: rgba(16,34,31,.7);
+  --ac: #cfb17c;
+  --ac-dim: #e2c796;
+  --ac-bg: rgba(207,177,124,.075);
+  --ac-bdr: rgba(207,177,124,.3);
+  --button-bg: #cfb17c;
+  --button-text: #17281f;
+  --lu: #75c8a5;
+  --quan: #91bad8;
+  --ke: #d6bb78;
+  --ji: #df9282;
+  --star-bright: #e9ce98;
+  --star-neutral: #cfb17c;
+  --star-dim: #a7a28b;
+  --bdr: rgba(190,199,160,.12);
+  --bdr-med: rgba(190,174,130,.22);
+  --bdr-heavy: rgba(207,177,124,.36);
+  --sh-xs: 0 1px 2px rgba(0,0,0,.1);
+  --sh-sm: 0 3px 16px rgba(0,0,0,.1);
+  --sh-md: 0 8px 24px rgba(0,0,0,.16);
+  --sh-lg: 0 20px 64px rgba(0,0,0,.3);
+  color-scheme: dark;
 }
 
 /* ─── 全局基础 ───────────────────────────────────────────── */

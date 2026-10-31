@@ -1,4 +1,4 @@
-import { publicModelSettings, readAISettings, saveAISettings } from '@/lib/ai/settings';
+import { modelSettingsForPage, readAISettings, saveAISettings } from '@/lib/ai/settings';
 import { modelSettingsError, readModelSettingsRequest } from '@/lib/ai/settings-api';
 
 export const runtime = 'nodejs';
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const { config, source } = await readAISettings();
-    return Response.json({ settings: publicModelSettings(config, source) }, { headers: { 'Cache-Control': 'no-store' } });
+    return Response.json({ settings: modelSettingsForPage(config, source) }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) { return modelSettingsError(error); }
 }
 

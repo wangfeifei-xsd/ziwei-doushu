@@ -23,7 +23,7 @@ export default function LibrarySearch() {
   };
 
   return (
-    <div style={{
+    <div className="library-search" style={{
       display: 'flex',
       gap: '8px',
       padding: '6px',

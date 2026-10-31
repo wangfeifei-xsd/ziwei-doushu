@@ -31,10 +31,10 @@ export function buildSiHuaOverlay(stemIndex: number): Record<string, string> {
 }
 
 const SIHUA_COLORS: Record<string, string> = {
-  '禄': '#4ade80',
-  '权': '#60a5fa',
-  '科': '#facc15',
-  '忌': '#f87171',
+  '禄': 'var(--lu)',
+  '权': 'var(--quan)',
+  '科': 'var(--ke)',
+  '忌': 'var(--ji)',
 };
 
 export default function TimeNav({
@@ -74,7 +74,7 @@ export default function TimeNav({
   const overlayInfo = getOverlayInfo();
 
   return (
-    <div className="mb-3">
+    <div className="chart-time-nav mb-3">
       {/* Tab 行 */}
       <div
         className="flex items-center rounded-xl p-1 gap-1"
@@ -119,7 +119,7 @@ export default function TimeNav({
           <div className="flex items-center gap-0.5">
             <button
               onClick={e => { e.stopPropagation(); onYearChange(liunianYear - 1); if (view !== 'liunian') onViewChange('liunian'); }}
-              className="text-[9px] w-4 h-4 flex items-center justify-center rounded"
+              aria-label="上一年" className="text-[9px] w-4 h-4 flex items-center justify-center rounded"
               style={{ color: 'var(--t-faint)' }}
             >
               ‹
@@ -133,7 +133,7 @@ export default function TimeNav({
             </span>
             <button
               onClick={e => { e.stopPropagation(); onYearChange(liunianYear + 1); if (view !== 'liunian') onViewChange('liunian'); }}
-              className="text-[9px] w-4 h-4 flex items-center justify-center rounded"
+              aria-label="下一年" className="text-[9px] w-4 h-4 flex items-center justify-center rounded"
               style={{ color: 'var(--t-faint)' }}
             >
               ›

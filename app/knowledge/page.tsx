@@ -17,9 +17,9 @@ export default function KnowledgeHomePage() {
   const STAR_DESCRIPTIONS_QUICK = STAR_BRIEF_SEO;
 
   return (
-    <div style={{ background: 'var(--bg-page)', minHeight: '100vh' }}>
+    <div className="reading-page" style={{ background: 'var(--bg-page)', minHeight: '100vh' }}>
       {/* 顶栏 */}
-      <div className="px-6 py-4 flex items-center justify-between"
+      <div className="reading-breadcrumb px-6 py-4 flex items-center justify-between"
         style={{ borderBottom: '1px solid rgba(184,146,42,0.15)', background: 'var(--bg-page)' }}>
         <Link href="/" style={{ fontSize: '12px', color: 'var(--ac)', letterSpacing: '0.3em', textDecoration: 'none' }}>
           ← 首页
@@ -43,7 +43,7 @@ export default function KnowledgeHomePage() {
           紫微斗数知识库
         </h1>
         <p style={{ fontSize: '14px', color: 'var(--tx-2)', letterSpacing: '0.08em', maxWidth: '600px', margin: '0 auto', lineHeight: 1.7 }}>
-          14 主星 × 13 宫位 = <strong style={{ color: 'var(--ac)' }}>{ALL_STARS.length * ALL_TOPICS.length}</strong> 项专题<br />
+          读懂 <strong style={{ color: 'var(--ac)' }}>{ALL_STARS.length}</strong> 颗主星，循星曜之序认识紫微斗数<br />
           基于倪海厦《天纪》体系编纂 · 含古籍引证
         </p>
       </div>
@@ -57,7 +57,7 @@ export default function KnowledgeHomePage() {
           {ALL_STARS.map(star => (
             <Link
               key={star}
-              href={`/knowledge/${STAR_TO_SLUG[star]}/overview`}
+              href={getKnowledge(star, 'overview').exists ? `/knowledge/${STAR_TO_SLUG[star]}/overview` : `#star-${STAR_TO_SLUG[star]}`}
               style={{
                 display: 'block',
                 padding: '14px 10px',
@@ -80,7 +80,7 @@ export default function KnowledgeHomePage() {
         {/* 详细列表（每个主星 + 简介 + 进入按钮） */}
         <div className="mt-14 space-y-4">
           {ALL_STARS.map(star => (
-            <div key={star} style={{
+            <div key={star} id={`star-${STAR_TO_SLUG[star]}`} style={{ scrollMarginTop: 130,
               background: 'var(--bg-card)',
               border: '1px solid rgba(184,146,42,0.18)',
               borderRadius: '12px',

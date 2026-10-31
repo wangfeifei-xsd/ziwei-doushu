@@ -4,7 +4,11 @@ import { readAISettings } from './settings';
 
 export async function readModelSettingsRequest(request: Request) {
   const origin = request.headers.get('origin');
-  if ((origin && origin !== new URL(request.url).origin) || request.headers.get('sec-fetch-site') === 'cross-site') {
+  // Next.js can reconstruct request.url with its bind hostname instead of the browser's host.
+  const url = new URL(request.url);
+  const host = request.headers.get('x-forwarded-host')?.split(',')[0].trim() || request.headers.get('host') || url.host;
+  const protocol = request.headers.get('x-forwarded-proto')?.split(',')[0].trim() || url.protocol.replace(':', '');
+  if ((origin && origin !== `${protocol}://${host}`) || request.headers.get('sec-fetch-site') === 'cross-site') {
     throw new AIConfigError('请在本站模型配置页面提交设置。', 403);
   }
   if (!request.headers.get('content-type')?.includes('application/json')) {

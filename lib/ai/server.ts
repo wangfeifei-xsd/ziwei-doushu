@@ -52,7 +52,7 @@ export async function handleAIRequest(
     const endpoint = getAIEndpoint(config);
     const abort = new AbortController();
     const signal = AbortSignal.any([request.signal, abort.signal, AbortSignal.timeout(options?.timeoutMs ?? 180_000)]);
-    const options: RequestInit = {
+    const requestOptions: RequestInit = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -72,12 +72,12 @@ export async function handleAIRequest(
     };
     let upstream: Response;
     try {
-      upstream = await fetch(endpoint, options);
+      upstream = await fetch(endpoint, requestOptions);
     } catch (error) {
       const code = (error as { cause?: { code?: string } })?.cause?.code;
       if (signal.aborted || !['ECONNRESET', 'UND_ERR_SOCKET'].includes(code ?? '')) throw error;
       // 只在尚未收到响应头时，为连接重置重试一次；不重试额度或认证错误。
-      upstream = await fetch(endpoint, options);
+      upstream = await fetch(endpoint, requestOptions);
     }
     if (!upstream.ok) {
       await upstream.body?.cancel();

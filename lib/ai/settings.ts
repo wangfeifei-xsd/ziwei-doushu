@@ -36,13 +36,14 @@ export async function getAIConfig(): Promise<AIConfig> {
   }
 }
 
-export function publicModelSettings(config: AIConfig, source: ModelSettings['source']): ModelSettings {
+export function modelSettingsForPage(config: AIConfig, source: ModelSettings['source']): ModelSettings {
   let configured = false;
   try { parseAIConfig(config); configured = true; } catch { /* Incomplete environment settings can still be edited. */ }
   return {
     baseURL: config.baseURL,
     model: config.model,
     mode: config.mode === 'responses' ? 'responses' : 'chat',
+    apiKey: config.apiKey,
     hasApiKey: Boolean(config.apiKey),
     configured,
     source,
@@ -61,5 +62,5 @@ export async function saveAISettings(config: AIConfig): Promise<ModelSettings> {
   } finally {
     await rm(/* turbopackIgnore: true */ temporary, { force: true });
   }
-  return publicModelSettings(validated, 'saved');
+  return modelSettingsForPage(validated, 'saved');
 }

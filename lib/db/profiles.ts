@@ -7,6 +7,11 @@ import type { BirthFormState } from '@/components/BirthForm';
 const state = globalThis as typeof globalThis & { ziweiH2?: H2Database };
 
 function database() {
+  // Fast Refresh retains global state, including the Java bridge from older code.
+  if (state.ziweiH2 && state.ziweiH2.protocolVersion !== H2Database.protocolVersion) {
+    void state.ziweiH2.close().catch(() => console.error('Outdated H2 bridge could not close cleanly'));
+    state.ziweiH2 = undefined;
+  }
   if (!state.ziweiH2 || state.ziweiH2.closed) state.ziweiH2 = new H2Database();
   return state.ziweiH2;
 }

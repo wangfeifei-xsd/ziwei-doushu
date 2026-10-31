@@ -12,6 +12,8 @@ interface Pending {
 
 /** One embedded H2 process per Next.js worker, reused through development reloads. */
 export class H2Database {
+  static readonly protocolVersion = 2;
+  readonly protocolVersion = H2Database.protocolVersion;
   private child: ChildProcessWithoutNullStreams;
   private pending = new Map<number, Pending>();
   private sequence = 0;

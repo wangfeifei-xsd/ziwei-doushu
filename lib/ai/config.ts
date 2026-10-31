@@ -11,6 +11,7 @@ export interface ModelSettings {
   baseURL: string;
   model: string;
   mode: AIAPIMode;
+  apiKey: string;
   hasApiKey: boolean;
   configured: boolean;
   source: 'environment' | 'saved';
@@ -38,7 +39,7 @@ export function parseAIConfig(input: unknown, existingKey = ''): AIConfig {
   const baseURL = field('baseURL', '接口地址', 2048).replace(/\/+$/, '');
   const model = field('model', '模型名称', 200);
   const apiKey = (value.apiKey === undefined ? '' : field('apiKey', 'API Key', 4096)) || existingKey;
-  if (!apiKey || /\s/.test(apiKey)) throw new AIConfigError('请填写有效的 API Key。');
+  if (!apiKey || apiKey.length > 4096 || /[\s\x00-\x1f\x7f]/.test(apiKey)) throw new AIConfigError('请填写有效的 API Key。');
   if (!model) throw new AIConfigError('请填写模型名称。');
   if (value.mode !== 'chat' && value.mode !== 'responses') {
     throw new AIConfigError('请选择 Chat Completions 或 Responses 接口类型。');
