@@ -6,7 +6,11 @@ import {spawn,execFileSync} from 'node:child_process';
 import net from 'node:net';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
-const temp=await mkdtemp(path.join(tmpdir(),'紫微 启停回归-'));
+// Keep a Windows junction and its dependency target on the same drive. Next/webpack
+// cannot create a relative client entry across C: (system temp) and D: (checkout).
+const tempBase=process.platform==='win32'?path.join(root,'.runtime'):tmpdir();
+await mkdir(tempBase,{recursive:true});
+const temp=await mkdtemp(path.join(tempBase,'紫微 启停回归-'));
 const fixture=path.join(temp,'含中文 空格项目');await mkdir(fixture);
 for(const name of ['scripts','packages','assets'])await cp(path.join(root,name),path.join(fixture,name),{recursive:true});
 for(const app of ['web','native'])await cp(path.join(root,'apps',app),path.join(fixture,'apps',app),{recursive:true,filter:file=>!['node_modules','.next','public','dist','src-tauri'].includes(path.basename(file))});
