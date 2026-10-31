@@ -14,7 +14,7 @@ for(const name of ['package.json','tsconfig.base.json','types'])await cp(path.jo
 await symlink(path.join(root,'node_modules'),path.join(fixture,'node_modules'),process.platform==='win32'?'junction':'dir');
 const script=path.join(fixture,'scripts/service.mjs');
 const env={...process.env,H2_DATA_DIR:path.join(temp,'private-db'),AI_CONFIG_DIR:path.join(temp,'private-model'),OPENAI_API_KEY:'',OPENAI_BASE_URL:'',OPENAI_MODEL:'',ZIWEI_START_TIMEOUT_MS:'120000',NEXT_TELEMETRY_DISABLED:'1'};
-function run(args,success=true){return new Promise((resolve,reject)=>{const child=spawn(process.execPath,[script,...args],{cwd:temp,env,stdio:['ignore','pipe','pipe']});let output='';child.stdout.on('data',chunk=>output+=chunk);child.stderr.on('data',chunk=>output+=chunk);child.once('error',reject);child.once('exit',code=>{try{if(success)assert.equal(code,0,output);else assert.notEqual(code,0,output);resolve(output);}catch(error){reject(error);}});});}
+function run(args,success=true){console.log('Lifecycle:',args.join(' '));return new Promise((resolve,reject)=>{const child=spawn(process.execPath,[script,...args],{cwd:temp,env,stdio:['ignore','pipe','pipe']});let output='';child.stdout.on('data',chunk=>output+=chunk);child.stderr.on('data',chunk=>output+=chunk);child.once('error',reject);child.once('exit',code=>{try{if(success)assert.equal(code,0,output);else assert.notEqual(code,0,output);resolve(output);}catch(error){reject(error);}});});}
 async function port(){return new Promise(resolve=>{const server=net.createServer();server.listen(0,'127.0.0.1',()=>{const value=server.address().port;server.close(()=>resolve(value));});});}
 async function free(value){return new Promise(resolve=>{const server=net.createServer();server.once('error',()=>resolve(false));server.listen(value,'127.0.0.1',()=>server.close(()=>resolve(true)));});}
 const webPort=await port(),vitePort=await port();
@@ -45,5 +45,5 @@ try{
   execFileSync(path.join(fixture,'scripts/start.sh'),['app-web','--port',String(vitePort)],{cwd:temp,env,stdio:'pipe'});execFileSync(path.join(fixture,'scripts/stop.sh'),['app-web'],{cwd:temp,env,stdio:'pipe'});assert.ok(await free(vitePort));
  }
  console.log('✓ 服务启停回归：真实 Web/H2 与 Vite，并行隔离、重启存档、中文空格路径、不同 cwd、外部占用、陈旧 PID、幂等和平台包装入口。');
-}catch(error){console.error(`回归诊断目录：${temp}`);await cp(path.join(fixture,'.runtime'),path.join(root,'.runtime/lifecycle-last-failure'),{recursive:true}).catch(()=>{});throw error;}
-finally{if(external)external.close();await run(['stop','--all']).catch(()=>{});await rm(temp,{recursive:true,force:true,maxRetries:5,retryDelay:500});}
+}catch(error){console.error(error);console.error(`回归诊断目录：${temp}`);await cp(path.join(fixture,'.runtime'),path.join(root,'.runtime/lifecycle-last-failure'),{recursive:true}).catch(()=>{});throw error;}
+finally{if(external)external.close();await run(['stop','--all']).catch(error=>console.error('Cleanup stop:',error.message));await rm(temp,{recursive:true,force:true,maxRetries:5,retryDelay:500}).catch(error=>console.error('Cleanup directory:',error.message));}

@@ -23,7 +23,7 @@ function ps(pid) {
   if (!Number.isInteger(pid) || pid < 2) return null;
   try {
     if(windows) {
-      const output=execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',`Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}" | Select-Object ProcessId,CommandLine,CreationDate | ConvertTo-Json -Compress`],{encoding:'utf8',windowsHide:true,timeout:5000}).trim();
+      const output=execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',`[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(); Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}" | Select-Object ProcessId,CommandLine,CreationDate | ConvertTo-Json -Compress`],{encoding:'utf8',windowsHide:true,timeout:10000}).trim();
       if(!output)return null;const item=JSON.parse(output);return {pid,birth:String(item.CreationDate),command:item.CommandLine||'',pgid:pid};
     }
     const output = execFileSync('ps', ['-p', String(pid), '-o', 'pgid=,lstart=,stat=,args='], {encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();
