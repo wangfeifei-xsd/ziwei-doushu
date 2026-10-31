@@ -9,6 +9,7 @@ import { canonicalForm, validateProfileExport } from '@ziwei/domain/profiles-tra
 import { interpretMessages, hemingMessages } from '@ziwei/features/ai/prompts';
 import { requestBody, upstreamEvents, consumeAI } from '@ziwei/features/ai/client';
 import type { ModelSettings } from '@ziwei/domain/ai/config';
+import { createAIByteStream } from './ai-byte-stream';
 
 async function call<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   try { return await invoke<T>(name, args); } catch(e) { throw new Error(typeof e === 'string' ? e : '原生操作失败，请重试。'); }
@@ -37,22 +38,12 @@ export async function createNativeServices(websiteURL: string) {
     signal.throwIfAborted();
     const requestId = crypto.randomUUID();
     await call('ai_begin',{requestId}); active.add(requestId);
-    let controller: ReadableStreamDefaultController<Uint8Array>;
-    let buffered = 0;
-    const bodyStream = new ReadableStream<Uint8Array>({ start(value) { controller = value; }, cancel() { void cancel(); } });
-    const channel = new Channel<{type:'chunk'; bytes:number[]}>();
-    let closed = false;
     let settled = false;
-    const finish = (error?: unknown) => { if (closed) return; closed = true; if(error)controller.error(error); else controller.close(); };
     const cancel = async () => { if(!settled) await call('ai_cancel',{requestId}).catch(()=>{}); };
+    const {stream:bodyStream,enqueue,finish} = createAIByteStream(cancel);
+    const channel = new Channel<{type:'chunk'; bytes:number[]}>();
     const abort = () => { finish(new DOMException('请求已取消','AbortError')); void cancel(); };
-    channel.onmessage = event => {
-      if (closed) return;
-      // Bound queued IPC data when the view is no longer consuming it.
-      buffered = Math.max(0, -(controller.desiredSize ?? 0));
-      if(buffered > 1024) { finish(new Error('响应队列过长，已取消请求。')); void cancel(); return; }
-      controller.enqueue(new Uint8Array(event.bytes));
-    };
+    channel.onmessage = event => enqueue(event.bytes);
     signal.addEventListener('abort',abort,{once:true});
     if(signal.aborted)abort();
     const task = call<void>('ai_stream',{requestId,body,channel,draft:draft ?? null}).then(()=>{settled=true;finish();},error=>{settled=true;finish(error);});

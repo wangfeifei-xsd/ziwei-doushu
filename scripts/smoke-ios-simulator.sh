@@ -23,7 +23,7 @@ finish() {
     for file in "$DIAGNOSTICS/stdout.log" "$DIAGNOSTICS/stderr.log"; do
       if [[ -f "$file" ]]; then tail -100 "$file"; fi
     done
-    bounded 30 xcrun simctl spawn "$DEVICE" log show --last 5m --style compact --predicate 'process == "紫微命盘" OR process == "ziwei-native" OR eventMessage CONTAINS "com.ziwei.chart"' > "$DIAGNOSTICS/system.log" 2>&1
+    bounded 30 xcrun simctl spawn "$DEVICE" log show --last 5m --style compact --predicate 'process == "Ziwei" OR process == "紫微命盘" OR process == "ziwei-native" OR eventMessage CONTAINS "com.ziwei.chart"' > "$DIAGNOSTICS/system.log" 2>&1
     # Reproduce an early native crash under LLDB, including faults before Rust
     # can install its panic hook or the WebView can produce console output.
     bounded 15 xcrun simctl terminate "$DEVICE" com.ziwei.chart >/dev/null 2>&1
@@ -31,7 +31,7 @@ finish() {
     local debug_pid
     debug_pid=$(awk '/^com\.ziwei\.chart:/ {print $NF}' "$DIAGNOSTICS/debug-launch.log")
     if [[ "$debug_pid" =~ ^[0-9]+$ ]]; then
-      bounded 90 xcrun lldb --batch -p "$debug_pid" -o continue -o 'thread backtrace all' -o 'register read' > "$DIAGNOSTICS/backtrace.log" 2>&1
+      bounded 90 xcrun lldb --batch -p "$debug_pid" -o continue -k 'thread backtrace all' -k 'register read' > "$DIAGNOSTICS/backtrace.log" 2>&1
       tail -120 "$DIAGNOSTICS/backtrace.log"
     fi
     python3 - "$DIAGNOSTICS" "$DEVICE" "$STARTED_AT" <<'PY'

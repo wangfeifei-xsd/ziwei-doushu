@@ -67,6 +67,8 @@ bash scripts/smoke-ios-simulator.sh
 
 Intel 构建宿主模拟器目标用 `x86_64`。最低 iOS 15；模拟器 `.app.tar.gz` 不能装到真机，也不能改后缀成为 IPA。CI 会启动模拟器、安装、launch 并截图；这只证明实际启动，分享/键盘/后台等仍需交互验收。
 
+iOS 单独使用 `tauri.ios.conf.json` 将内部产品/可执行文件名设为 ASCII `Ziwei`，`Info.ios.plist` 保留桌面显示名「紫微命盘」。这是为了避免已复现的系统 `NSBundle bundleWithIdentifier:` 对非 ASCII 可执行文件路径查询时触发 `CFRelease(NULL)` 崩溃（[相关系统问题](https://github.com/firebase/firebase-ios-sdk/issues/3951)）；不改 bundle identifier 或应用数据身份。Android/macOS/Windows 继续使用原产品名。
+
 真机发行先匹配 Apple Team、`com.ziwei.chart` 对应的 distribution profile 和证书。CI 通过 `prepare-ios-signing.py` 验证 profile 并配置 manual signing，再运行 `tauri ios build --ci --target aarch64 --export-method app-store-connect`。无凭据时仅做模拟器包。
 
 ## 标识、版本与权限
