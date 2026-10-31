@@ -198,6 +198,7 @@ jobs:
         with:
           workspaces: apps/native/src-tauri -> target
           key: android-arm64-ndk28
+          cache-on-failure: true
       - uses: actions/cache@v4
         with:
           path: |
@@ -265,6 +266,7 @@ jobs:
         with:
           workspaces: apps/native/src-tauri -> target
           key: ios
+          cache-on-failure: true
       - run: npm ci --no-audit --no-fund
       - run: brew install xcodegen
       - run: node scripts/mobile-project.mjs ios
@@ -303,6 +305,17 @@ jobs:
           path: dist/artifacts/*
           if-no-files-found: error
           retention-days: 14
+      - name: Preserve iOS launch diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-diagnostics-${{ github.sha }}
+          path: |
+            .runtime/ios-diagnostics/
+            dist/artifacts/ios-simulator-launch.png
+            dist/artifacts/ziwei-ios-simulator.app.tar.gz
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Remove provisioning material
         if: always()
         run: python3 scripts/prepare-ios-signing.py --cleanup
