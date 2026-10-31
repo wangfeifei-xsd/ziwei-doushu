@@ -26,7 +26,7 @@ async function main() {
   const id = idFor(form);
   assert.ok(isProfileId(id));
   assert.ok(!isProfileId("' OR 1=1 --"));
-  const directory = await mkdtemp(path.join(tmpdir(), 'ziwei-h2-profiles-'));
+  const directory = await mkdtemp(path.join(tmpdir(), '紫微 H2 档案-'));
   let database = new H2Database(directory);
   try {
     assert.deepEqual(await database.request('list'), []);

@@ -13,7 +13,7 @@ interface Pending {
 
 /** One embedded H2 process per Next.js worker, reused through development reloads. */
 export class H2Database {
-  static readonly protocolVersion = 2;
+  static readonly protocolVersion = 3;
   readonly protocolVersion = H2Database.protocolVersion;
   private child: ChildProcessWithoutNullStreams;
   private pending = new Map<number, Pending>();
@@ -25,13 +25,20 @@ export class H2Database {
     const databasePath = path.resolve(dataDir, 'ziwei');
     if (/[;\r\n]/.test(databasePath)) throw new Error('H2 数据目录不能包含分号或换行。');
     mkdirSync(/* turbopackIgnore: true */ path.dirname(databasePath), { recursive: true, mode: 0o700 });
+    // Java 17's Windows launcher can lose Unicode argv. CreateProcessW preserves
+    // cwd and environment, so keep launcher arguments relative and ASCII-only.
     // Assets are explicitly traced in next.config.js; JAVA_BIN is a runtime executable.
+    const bridgeDirectory = path.dirname(serverAsset('server/h2/ProfileStore.java'));
     this.child = spawn(/* turbopackIgnore: true */ process.env.JAVA_BIN || 'java', [
       '-Dh2.bindAddress=127.0.0.1',
-      '--class-path', serverAsset('vendor/h2/h2-2.5.252.jar'),
-      serverAsset('server/h2/ProfileStore.java'), databasePath,
+      '--class-path', path.relative(bridgeDirectory, serverAsset('vendor/h2/h2-2.5.252.jar')),
+      'ProfileStore.java',
       ...(options.readOnly ? ['--readonly'] : []),
-    ], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+    ], {
+      cwd: bridgeDirectory,
+      env: { ...process.env, ZIWEI_H2_DATABASE_PATH: databasePath },
+      stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
+    });
     const lines = createInterface({ input: this.child.stdout });
     const onExit = () => { this.child.kill(); };
     process.once('exit', onExit);
