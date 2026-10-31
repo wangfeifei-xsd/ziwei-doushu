@@ -1,3 +1,3 @@
 $ErrorActionPreference = 'Stop'
-& node (Join-Path $PSScriptRoot 'service.mjs') stop @args
+& (Join-Path $PSScriptRoot 'service.ps1') stop @args
 exit $LASTEXITCODE
