@@ -1,12 +1,13 @@
+import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import nextEnv from '@next/env';
 
-nextEnv.loadEnvConfig(process.cwd());
+nextEnv.loadEnvConfig(fileURLToPath(new URL('../', import.meta.url)));
 
 try {
-  const jar = readFileSync(new URL('../vendor/h2/h2-2.5.252.jar', import.meta.url));
+  const jar = readFileSync(new URL('../apps/web/vendor/h2/h2-2.5.252.jar', import.meta.url));
   const digest = createHash('sha256').update(jar).digest('hex');
   if (digest !== '90b11dc413da82070ef15fc943282c1408e6ffd34fa68998335fea8603b5ff20') {
     throw new Error('随项目提供的 H2 驱动校验失败，请重新获取 vendor/h2/h2-2.5.252.jar。');

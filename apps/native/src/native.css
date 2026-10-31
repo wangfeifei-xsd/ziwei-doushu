@@ -1,0 +1,8 @@
+html, body, #root { min-height: 100dvh; }
+body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); overscroll-behavior-y: contain; }
+.site-header { top: env(safe-area-inset-top); }
+.preview-notice { background: var(--ac-bg); color: var(--ac); border-bottom: 1px solid var(--ac-bdr); padding: 8px 16px; font-size: 12px; line-height: 1.6; }
+button, a, input, select, textarea { touch-action: manipulation; }
+.native-back { max-width:1320px; margin:12px auto 0; padding:0 max(18px, env(safe-area-inset-left)); }
+.native-back button { min-height:44px; padding:8px 16px; border:1px solid var(--bdr-med); border-radius:24px; background:var(--bg-0);color:var(--tx-1); }
+@media (max-width: 600px) { input,select,textarea { font-size: max(16px, 1em); } .chart-main { padding-left: 8px; padding-right: 8px; } }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readAIResponse, readSSEData } from '../../lib/ai/stream';
+import { readAIResponse, readSSEData } from '../../packages/features/src/ai/stream';
 
 function fragmented(text: string, size = 1): ReadableStream<Uint8Array> {
   const bytes = new TextEncoder().encode(text);

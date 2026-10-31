@@ -3,10 +3,10 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { H2Database } from '../../lib/db/h2';
-import { isProfileId, parseProfileForm, type BirthProfile } from '../../lib/ziwei/profiles';
-import { formToBirthInfo } from '../../lib/ziwei/share';
-import { generateChart } from '../../lib/ziwei/algorithm';
+import { H2Database } from '../../apps/web/lib/db/h2';
+import { isProfileId, parseProfileForm, type BirthProfile } from '../../packages/domain/src/ziwei/profiles';
+import { formToBirthInfo } from '../../packages/domain/src/ziwei/share';
+import { generateChart } from '../../packages/domain/src/ziwei/algorithm';
 
 async function main() {
   const form = parseProfileForm({

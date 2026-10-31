@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "name": "@ziwei/content",
+  "exports": {
+    "./classics": "./src/classics/index.ts",
+    "./classics/*": "./src/classics/*.ts",
+    "./nihai": "./src/nihai/index.ts",
+    "./nihai/*": "./src/nihai/*.ts",
+    "./seo/*": "./src/seo/*.ts"
+  },
+  "dependencies": {
+    "@ziwei/domain": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

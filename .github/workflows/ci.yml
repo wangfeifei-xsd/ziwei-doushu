@@ -1,34 +1,73 @@
 name: CI
-
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
-
+  workflow_call:
+permissions:
+  contents: read
 jobs:
-  check:
-    name: 类型检查 + 排盘回归
-    runs-on: ubuntu-latest
+  web-and-shared:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-
-      # 仓库已提交 package-lock.json：按锁定版本安装，并开 npm 缓存
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version-file: .node-version
           cache: npm
-
-      - name: 安装依赖
-        run: npm ci --no-audit --no-fund
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: 类型检查
-        run: npm run typecheck
-
-      - name: 排盘引擎回归
-        run: npm test
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check:versions && npm run check:boundaries
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:scripts
+      - run: npm run build:web && npm run build:app && npm run package:web
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:web
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-diagnostics-${{ github.sha }}
+          path: |
+            test-results/
+            .runtime/tauri-review/
+          if-no-files-found: ignore
+          retention-days: 7
+  rust:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build:app
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/native/src-tauri -> target
+      - run: cargo fmt --manifest-path apps/native/src-tauri/Cargo.toml --all --check
+      - run: cargo clippy --manifest-path apps/native/src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+      - run: npm run test:native
+  windows-lifecycle:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:scripts

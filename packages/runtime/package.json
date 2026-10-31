@@ -1,0 +1,25 @@
+{
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "name": "@ziwei/runtime",
+  "exports": {
+    "./navigation": "./src/navigation.tsx",
+    "./services": "./src/services.tsx",
+    "./preferences": "./src/preferences.ts",
+    "./history": "./src/history.ts",
+    "./school-storage": "./src/school-storage.ts",
+    "./site": "./src/site.ts"
+    ,"./modal": "./src/modal.ts"
+  },
+  "dependencies": {
+    "@ziwei/domain": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  }
+}

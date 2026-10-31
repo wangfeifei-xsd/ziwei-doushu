@@ -4,8 +4,8 @@
  *   · 平移方向：标准时间 = 钟表读数 −（当年实际偏移 − 标准偏移）；跨日不改（给 null）。
  *   · 国内不传 utcOffsetMinutes 与传 480 逐日结果一致；海外按出生地时区的中央经线做经度修正。
  */
-import { clockToStandardDelta, formatClock, shiftClock } from '../../lib/ziwei/clock-adjust';
-import { calculateTrueSolarTime } from '../../lib/ziwei/true-solar-time';
+import { clockToStandardDelta, formatClock, shiftClock } from '../../packages/domain/src/ziwei/clock-adjust';
+import { calculateTrueSolarTime } from '../../packages/domain/src/ziwei/true-solar-time';
 
 let fails = 0;
 function ok(name: string, cond: boolean) {

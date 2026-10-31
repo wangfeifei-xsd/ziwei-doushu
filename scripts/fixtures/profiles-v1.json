@@ -1,0 +1,61 @@
+{
+  "format": "ziwei-profiles",
+  "version": 1,
+  "exportedAt": "2026-10-31T00:00:00.000Z",
+  "profiles": [
+    {
+      "id": "1d9449f5f7bf97d0ef7afdbd89d73b98edebaf6fab9248932c3998e6d3b2e4a5",
+      "form": {
+        "name": "测试😀",
+        "year": "2000",
+        "month": "1",
+        "day": "31",
+        "clockHour": "23",
+        "clockMinute": "30",
+        "unknownTime": false,
+        "province": "浙江省",
+        "city": "杭州市",
+        "longitude": 120.2,
+        "gender": "female"
+      },
+      "savedAt": 1000,
+      "canonical": "{\"name\":\"测试😀\",\"year\":\"2000\",\"month\":\"1\",\"day\":\"31\",\"clockHour\":\"23\",\"clockMinute\":\"30\",\"unknownTime\":false,\"province\":\"浙江省\",\"city\":\"杭州市\",\"longitude\":120.2,\"gender\":\"female\"}"
+    },
+    {
+      "id": "3648bfc2880f70aac3b5c828af826c88ba69eef0e26fc0abfd5b50fe7c7364d4",
+      "form": {
+        "name": "同生日的另一个人",
+        "year": "2000",
+        "month": "1",
+        "day": "31",
+        "clockHour": "23",
+        "clockMinute": "30",
+        "unknownTime": false,
+        "province": "浙江省",
+        "city": "杭州市",
+        "longitude": -0.000001,
+        "gender": "female"
+      },
+      "savedAt": 1001,
+      "canonical": "{\"name\":\"同生日的另一个人\",\"year\":\"2000\",\"month\":\"1\",\"day\":\"31\",\"clockHour\":\"23\",\"clockMinute\":\"30\",\"unknownTime\":false,\"province\":\"浙江省\",\"city\":\"杭州市\",\"longitude\":-0.000001,\"gender\":\"female\"}"
+    },
+    {
+      "id": "bbb8ef54c2ed1872469b275e538ad0cf40c53116a67e0ffbe47c0fcd3d6f636f",
+      "form": {
+        "name": "未知时辰",
+        "year": "2000",
+        "month": "1",
+        "day": "31",
+        "clockHour": "23",
+        "clockMinute": "30",
+        "unknownTime": true,
+        "province": "浙江省",
+        "city": "杭州市",
+        "longitude": 0,
+        "gender": "female"
+      },
+      "savedAt": 1002,
+      "canonical": "{\"name\":\"未知时辰\",\"year\":\"2000\",\"month\":\"1\",\"day\":\"31\",\"clockHour\":\"23\",\"clockMinute\":\"30\",\"unknownTime\":true,\"province\":\"浙江省\",\"city\":\"杭州市\",\"longitude\":0,\"gender\":\"female\"}"
+    }
+  ]
+}

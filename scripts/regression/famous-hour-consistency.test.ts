@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const BRANCH_NAMES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-const src = readFileSync(new URL('../../lib/ziwei/famous.ts', import.meta.url), 'utf8');
+const src = readFileSync(new URL('../../packages/domain/src/ziwei/famous.ts', import.meta.url), 'utf8');
 
 const rows = [...src.matchAll(/hour:\s*(\d+),?[ \t]*(?:\/\/[ \t]*(.*))?/g)];
 assert.ok(rows.length > 0, 'famous.ts 里没解析到任何 hour 字段，正则或文件结构变了');

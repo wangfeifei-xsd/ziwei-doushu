@@ -1,3 +1,5 @@
+> **Tauri 2 migration (2026-10-31):** npm workspaces now contain a Next website, a React/Vite/Tauri native app, and shared domain/content/UI packages. Node >=22.12, Java 17+ JDK for Web H2, Rust and platform SDKs for native builds. See [local development](docs/LOCAL_DEVELOPMENT.md), [build/signing](docs/TAURI_BUILD.md), [data migration](docs/DATA_MIGRATION.md), and [actual verification](docs/TAURI_MIGRATION_REPORT.md). Pushes trigger GitHub builds for Web, Windows, macOS, Android and iOS simulator. Device acceptance and production signing are recorded separately.
+
 <div align="center">
 
 # Zi Wei Dou Shu · Open-Source Charting Engine
@@ -56,7 +58,7 @@ This repo is an open snapshot of the engine behind [metisziwei.com](https://meti
 | Twelve spirits | Natal layer by year branch, annual layer by the annual branch |
 | Patterns | 1,100+ lines of pattern rules (紫府同宫, 日月并明, 七杀朝斗, …) |
 
-Engine code lives in `lib/ziwei/` (entry point: `generateChart()` in `algorithm.ts`). Inputs are a **Gregorian** date and an **hour branch index 0–11** (子 = 0 … 亥 = 11), not a clock hour.
+Engine code lives in `packages/domain/src/ziwei/` (entry point: `generateChart()` in `algorithm.ts`). Inputs are a **Gregorian** date and an **hour branch index 0–11** (子 = 0 … 亥 = 11), not a clock hour.
 
 ## Quick start
 
@@ -64,17 +66,19 @@ Engine code lives in `lib/ziwei/` (entry point: `generateChart()` in `algorithm.
 git clone https://github.com/Renhuai123/ziwei-doushu.git
 cd ziwei-doushu
 npm ci
-npm run dev          # charting demo at http://localhost:3000/chart
+npm run dev          # Next website at http://localhost:3000/chart
+npm run dev:app:web  # Vite UI preview
+npm run dev:app      # Tauri desktop app (platform toolchain required)
 
 npm run typecheck    # TypeScript check
 npm test             # charting regression tests
 ```
 
-**No API key is needed for charting.** This local version includes streaming AI interpretation (`/api/interpret`) and compatibility analysis (`/api/heming`). Open **Model settings** (`/settings/model`, the gear icon in navigation) to set the API base URL, key, model ID, and API mode. Test the connection, then save to apply immediately without restarting. Saved settings take precedence over `.env.local` and persist in `data/ai-config.json` (or `AI_CONFIG_DIR`, falling back to `H2_DATA_DIR`). The settings page displays the current API key directly for copying or editing; leaving it blank preserves the existing one. You can still set environment defaults with `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, and `OPENAI_API_MODE`, then restart the server. Use `responses` for the Responses API or `chat` for Chat Completions. Run `npm run test:ai` for stream parsing regression tests without calling a real model.
+**No API key is needed for charting.** This local version includes streaming AI interpretation (`/api/interpret`) and compatibility analysis (`/api/heming`). Open **Model settings** (`/settings/model`, the gear icon in navigation) to set the API base URL, key, model ID, and API mode. Test the connection, then save to apply immediately without restarting. Saved settings take precedence over `.env.local` and persist in `data/ai-config.json` (or `AI_CONFIG_DIR`, falling back to `H2_DATA_DIR`). The settings page never returns a saved API key; leaving it blank preserves the existing one. Clearing a key requires a separate confirmation. You can still set environment defaults with `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, and `OPENAI_API_MODE`, then restart the server. Use `responses` for the Responses API or `chat` for Chat Completions. Run `npm run test:ai` for stream parsing regression tests without calling a real model.
 
 ## What is not included
 
-The commercial interpretation database (`lib/ziwei/db-analysis.ts` is a placeholder), commercial AI prompts and backend implementation, user accounts, payments, and deployment configuration. The local AI routes use the chart and locally detected patterns with the configured model.
+The commercial interpretation database (`packages/domain/src/ziwei/db-analysis.ts` is a placeholder), commercial AI prompts and backend implementation, user accounts, payments, and deployment configuration. The local AI routes use the chart and locally detected patterns with the configured model.
 
 ## Interpretation dataset v4.0 (674,976 charts × 13 topics, 2026-10-15)
 
@@ -107,7 +111,7 @@ Download from [Releases](https://github.com/Renhuai123/ziwei-doushu/releases/tag
 
 | Part | License |
 |---|---|
-| Code (`lib/`, `app/`, `components/`) | [MIT](./LICENSE) |
+| Code (`packages/`, `apps/`, `scripts/`) | [MIT](./LICENSE) |
 | Sample dataset (Releases) | [CC BY 4.0](./DATASET-LICENSE): commercial use OK with attribution |
 | Classical texts | Public domain |
 | Ni Haixia quotes (`docs/tianji-ziwei/`) | [CC BY-NC-SA 4.0](./docs/tianji-ziwei/LICENSE.md): **non-commercial only** |

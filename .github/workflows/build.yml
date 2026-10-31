@@ -1,0 +1,323 @@
+name: Build all platforms
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Rebuild platform
+        type: choice
+        options: [all, web, windows, macos, android, ios]
+        default: all
+      signing:
+        description: Require production signing credentials in the release environment
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.ref }}-${{ inputs.platform || 'all' }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') && inputs.signing != true }}
+env:
+  CI: 'true'
+  # VITE_SITE_URL is public. Model keys must never be passed to builds.
+  VITE_SITE_URL: ${{ vars.PUBLIC_SITE_URL }}
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+  web:
+    needs: verify
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'web'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build:web && npm run build:app && npm run package:web
+      - run: node scripts/smoke-standalone.mjs
+      - run: |
+          mkdir -p dist/artifacts
+          tar -czf dist/artifacts/ziwei-web-standalone.tar.gz -C dist/web .
+          tar -czf dist/artifacts/ziwei-vite-ui-preview.tar.gz -C apps/native/dist .
+          node scripts/build-manifest.mjs dist/artifacts
+        env:
+          BUILD_PLATFORM: web
+          BUILD_ARCH: portable-node
+          BUILD_COMMAND: npm run build:web && npm run build:app && npm run package:web
+          BUILD_SIGNING: not-applicable
+          BUILD_VALIDATION: Independent standalone HTTP and H2 CRUD smoke; Vite UI preview is not a native app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-${{ github.sha }}
+          path: dist/artifacts/*
+          if-no-files-found: error
+          retention-days: 14
+  desktop:
+    needs: verify
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows' || inputs.platform == 'macos'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            runner: windows-2025
+            target: x86_64-pc-windows-msvc
+          - platform: macos
+            runner: macos-15
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    environment: ${{ (inputs.signing == true || (startsWith(github.ref, 'refs/tags/') && vars.ENABLE_SIGNING == 'true')) && 'release' || 'build' }}
+    timeout-minutes: 50
+    env:
+      SIGN_BUILD: ${{ inputs.signing == true || (startsWith(github.ref, 'refs/tags/') && vars.ENABLE_SIGNING == 'true') }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select requested matrix target
+        id: select
+        shell: bash
+        run: |
+          if [[ '${{ github.event_name }}' != workflow_dispatch || '${{ inputs.platform }}' == all || '${{ inputs.platform }}' == '${{ matrix.platform }}' ]]; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.select.outputs.enabled == 'true'
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: dtolnay/rust-toolchain@1.95.0
+        if: steps.select.outputs.enabled == 'true'
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        if: steps.select.outputs.enabled == 'true'
+        with:
+          workspaces: apps/native/src-tauri -> target
+          key: ${{ matrix.target }}
+      - if: steps.select.outputs.enabled == 'true'
+        run: npm ci --no-audit --no-fund
+      - name: Build Windows NSIS
+        if: steps.select.outputs.enabled == 'true' && matrix.platform == 'windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ($env:SIGN_BUILD -eq 'true') {
+            if (!$env:WINDOWS_CERTIFICATE -or !$env:WINDOWS_CERTIFICATE_PASSWORD) { throw 'Missing Windows signing credentials' }
+            $certPath = Join-Path $env:RUNNER_TEMP 'ziwei-sign.pfx'
+            [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+            $cert = Import-PfxCertificate -FilePath $certPath -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force)
+            $config = @{bundle=@{windows=@{certificateThumbprint=$cert.Thumbprint;digestAlgorithm='sha256';timestampUrl='http://timestamp.digicert.com'}}} | ConvertTo-Json -Depth 8
+            $config | Set-Content -Encoding utf8NoBOM '.runtime-windows-sign.json'
+            try { npm run tauri -w '@ziwei/native' -- build --ci --target '${{ matrix.target }}' --bundles nsis --config '../../.runtime-windows-sign.json'; if ($LASTEXITCODE) { throw 'Windows build failed' } }
+            finally { Remove-Item $certPath -ErrorAction SilentlyContinue; Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -ErrorAction SilentlyContinue; Remove-Item '.runtime-windows-sign.json' -ErrorAction SilentlyContinue }
+          } else {
+            npm run tauri -w '@ziwei/native' -- build --ci --target '${{ matrix.target }}' --bundles nsis --no-sign
+            if ($LASTEXITCODE) { throw 'Windows build failed' }
+          }
+      - name: Build macOS app and DMG
+        if: steps.select.outputs.enabled == 'true' && matrix.platform == 'macos'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          uname -m
+          if [[ "$SIGN_BUILD" == true ]]; then
+            for key in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+              [[ -n "${!key}" ]] || { echo "Missing $key"; exit 1; }
+            done
+            npm run tauri -w @ziwei/native -- build --ci --target '${{ matrix.target }}' --bundles app,dmg
+          else
+            npm run tauri -w @ziwei/native -- build --ci --target '${{ matrix.target }}' --bundles app,dmg --no-sign
+          fi
+          file 'apps/native/src-tauri/target/${{ matrix.target }}/release/ziwei-native' | grep arm64
+      - name: Package desktop artifacts
+        if: steps.select.outputs.enabled == 'true'
+        shell: bash
+        env:
+          BUILD_PLATFORM: ${{ matrix.platform }}
+          BUILD_ARCH: ${{ matrix.target }}
+          BUILD_COMMAND: tauri build --ci --target ${{ matrix.target }}
+          BUILD_SIGNING: ${{ env.SIGN_BUILD == 'true' && 'production-signed' || 'unsigned-local-testing' }}
+          BUILD_VALIDATION: Native target compiled; architecture verified; installation and system dialogs require platform acceptance
+        run: |
+          node scripts/collect-desktop.mjs '${{ matrix.platform }}' '${{ matrix.target }}'
+          node scripts/build-manifest.mjs dist/artifacts
+      - uses: actions/upload-artifact@v4
+        if: steps.select.outputs.enabled == 'true'
+        with:
+          name: ${{ matrix.platform }}-${{ matrix.target }}-${{ env.SIGN_BUILD == 'true' && 'signed' || 'unsigned' }}-${{ github.sha }}
+          path: dist/artifacts/*
+          if-no-files-found: error
+          retention-days: 14
+  android:
+    needs: verify
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'android'
+    runs-on: ubuntu-24.04
+    environment: ${{ (inputs.signing == true || (startsWith(github.ref, 'refs/tags/') && vars.ENABLE_SIGNING == 'true')) && 'release' || 'build' }}
+    timeout-minutes: 55
+    env:
+      SIGN_BUILD: ${{ inputs.signing == true || (startsWith(github.ref, 'refs/tags/') && vars.ENABLE_SIGNING == 'true') }}
+      NDK_VERSION: 28.2.13676358
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-37' 'build-tools;37.0.0' "ndk;$NDK_VERSION"
+      - run: echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/native/src-tauri -> target
+          key: android-arm64-ndk28
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ runner.arch }}-ndk28-${{ hashFiles('package-lock.json', 'apps/native/src-tauri/Cargo.lock', 'apps/native/src-tauri/plugins/platform/android/build.gradle.kts') }}
+      - run: npm ci --no-audit --no-fund
+      - name: Prepare Android project and optional signing
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: node scripts/mobile-project.mjs android
+      - name: Build Android packages
+        env:
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ "$SIGN_BUILD" == true ]]; then
+            npm run tauri -w @ziwei/native -- android build --ci --target aarch64 --apk --aab
+          else
+            npm run tauri -w @ziwei/native -- android build --ci --target aarch64 --apk --debug
+          fi
+      - name: Verify Android native library page alignment
+        run: python3 scripts/check-android-alignment.py
+      - name: Collect APK and AAB
+        env:
+          BUILD_PLATFORM: android
+          BUILD_ARCH: arm64-v8a
+          BUILD_SIGNING: ${{ env.SIGN_BUILD == 'true' && 'release-keystore' || 'android-debug-keystore' }}
+          BUILD_COMMAND: tauri android build --ci --target aarch64
+          BUILD_VALIDATION: All packaged ELF LOAD segments and APK zip alignment verified for 16 KB pages; no device installation claim
+        run: |
+          node scripts/collect-android.mjs
+          node scripts/build-manifest.mjs dist/artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-arm64-${{ env.SIGN_BUILD == 'true' && 'release-signed' || 'debug' }}-${{ github.sha }}
+          path: dist/artifacts/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/ziwei-release.jks"
+  ios:
+    needs: verify
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'ios'
+    runs-on: macos-15
+    environment: ${{ (inputs.signing == true || (startsWith(github.ref, 'refs/tags/') && vars.ENABLE_SIGNING == 'true')) && 'release' || 'build' }}
+    timeout-minutes: 55
+    env:
+      SIGN_BUILD: ${{ inputs.signing == true || (startsWith(github.ref, 'refs/tags/') && vars.ENABLE_SIGNING == 'true') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          targets: aarch64-apple-ios, aarch64-apple-ios-sim, x86_64-apple-ios
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/native/src-tauri -> target
+          key: ios
+      - run: npm ci --no-audit --no-fund
+      - run: brew install xcodegen
+      - run: node scripts/mobile-project.mjs ios
+      - name: Build unsigned simulator app
+        run: |
+          if [[ $(uname -m) == arm64 ]]; then TARGET=aarch64-sim; else TARGET=x86_64; fi
+          npm run tauri -w @ziwei/native -- ios build --ci --target "$TARGET" --no-sign --archive-only
+          node scripts/collect-ios.mjs simulator
+          bash scripts/smoke-ios-simulator.sh
+      - name: Import iOS distribution certificate
+        if: env.SIGN_BUILD == 'true'
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_CERTIFICATE }}
+          p12-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+      - name: Prepare provisioning and build device IPA
+        if: env.SIGN_BUILD == 'true'
+        env:
+          IOS_PROFILE: ${{ secrets.IOS_PROFILE }}
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+        run: |
+          python3 scripts/prepare-ios-signing.py
+          npm run tauri -w @ziwei/native -- ios build --ci --target aarch64 --export-method app-store-connect
+          node scripts/collect-ios.mjs device
+      - name: Describe iOS artifacts
+        env:
+          BUILD_PLATFORM: ios
+          BUILD_ARCH: simulator-host-and-optional-arm64-device
+          BUILD_SIGNING: ${{ env.SIGN_BUILD == 'true' && 'simulator-unsigned-and-device-distribution' || 'simulator-only-unsigned' }}
+          BUILD_COMMAND: tauri ios build --ci
+          BUILD_VALIDATION: Simulator app compiled on Xcode; IPA only when production signing explicitly requested
+        run: node scripts/build-manifest.mjs dist/artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-${{ env.SIGN_BUILD == 'true' && 'simulator-and-device' || 'simulator' }}-${{ github.sha }}
+          path: dist/artifacts/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove provisioning material
+        if: always()
+        run: python3 scripts/prepare-ios-signing.py --cleanup
+  summary:
+    if: always()
+    needs: [verify, web, desktop, android, ios]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Summarize required jobs
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          results=json.loads(os.environ['RESULTS'])
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out:
+              out.write('## Multi-platform build results\n\n')
+              for name,item in results.items(): out.write(f"- {name}: {item['result']}\n")
+              out.write(f"\n[Download Actions artifacts](https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}#artifacts)\n\nUnsigned, debug, simulator and signed distribution packages are labeled separately. Compilation is not device acceptance.\n")
+          if any(item['result'] in ('failure','cancelled') for item in results.values()): raise SystemExit(1)
+          PY

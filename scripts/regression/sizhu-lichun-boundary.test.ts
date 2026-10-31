@@ -11,7 +11,7 @@
  * 本测试锁住：①会员案例修对 ②非节气日不被误伤 ③立春当天「前/后」正确分档。
  */
 import assert from 'node:assert/strict';
-import { generateChart } from '../../lib/ziwei/algorithm';
+import { generateChart } from '../../packages/domain/src/ziwei/algorithm';
 
 let passed = 0;
 const ok = (name: string, cond: boolean) => { assert.ok(cond, `❌ ${name}`); console.log(`  ✅ ${name}`); passed++; };

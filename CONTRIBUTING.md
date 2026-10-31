@@ -3,7 +3,7 @@
 欢迎提问题、提修复、提建议。先说清两件事，能省掉很多来回：
 
 - 本仓库是 [metisziwei.com](https://metisziwei.com/?from=gh-contrib) 排盘引擎的**开源快照**，定期从线上同步（节奏见 README「维护节奏与贡献」）。
-- 开源版**不含**断语库、AI 解读提示词和任何 `/api/*` 后端接口（见 README「开源边界」）。AI 解读、合盘分析在开源版里返回 404 是预期行为，需要你自己实现。
+- 开源版不含商业断语库和商业站后端；本地网站与原生应用已提供自填模型配置和流式 AI，提示词基于本地命盘与已有格局知识。共享层不得直接依赖 Next/Tauri/Node，提交前运行 `npm run check:boundaries`。
 
 ## 提问题
 
@@ -37,4 +37,4 @@ npm test             # 排盘回归
 
 ---
 
-**English.** Issues and PRs are welcome. This repo is an open snapshot of the charting engine behind metisziwei.com; the interpretation database, AI prompts and all `/api/*` backend routes are not included, so AI features return 404 by design. For a chart you believe is wrong, please use the "Chart result question" form with full birth data and a reference result. Before opening a PR, run `npm ci`, `npm run typecheck` and `npm test`; changes to chart results need evidence and a regression test.
+**English.** Issues and PRs are welcome. This repo is an open snapshot of the charting engine behind metisziwei.com; the commercial interpretation database and production backend are not included. Local Web/native model settings and streaming AI are implemented using local chart knowledge. For a chart you believe is wrong, please use the "Chart result question" form with full birth data and a reference result. Before opening a PR, run `npm ci`, `npm run typecheck` and `npm test`; changes to chart results need evidence and a regression test.

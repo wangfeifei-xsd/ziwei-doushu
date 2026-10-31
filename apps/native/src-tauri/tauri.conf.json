@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "紫微命盘", "version": "0.1.0", "identifier": "com.ziwei.chart",
+  "build": { "beforeDevCommand": "npm run dev", "devUrl": "http://localhost:1420", "beforeBuildCommand": "npm run build:app --prefix ../..", "frontendDist": "../dist" },
+  "app": {
+    "windows": [{ "title": "紫微命盘", "width": 1280, "height": 850, "minWidth": 360, "minHeight": 600 }],
+    "security": { "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'self'; frame-ancestors 'none'", "devCsp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost ws:; object-src 'none'" }
+  },
+  "bundle": { "active": true, "targets": "all", "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "shortDescription": "离线紫微排盘与生辰档案", "category": "Lifestyle", "macOS": { "minimumSystemVersion": "11.0" }, "iOS": { "minimumSystemVersion": "15.0" }, "android": { "minSdkVersion": 24 } }
+}

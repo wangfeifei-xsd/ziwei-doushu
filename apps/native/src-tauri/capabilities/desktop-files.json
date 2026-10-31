@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop-files",
+  "windows": ["main"],
+  "platforms": ["macOS", "windows", "linux"],
+  "permissions": ["dialog:allow-open", "dialog:allow-save", "fs:allow-open", "fs:allow-read", "fs:allow-write-file"]
+}

@@ -4,8 +4,8 @@
  * 金标准 case：1988-10-08 未时男 → 命宫 天机忌+太阴权；父母 贪狼禄+右弼科。
  */
 import assert from 'node:assert/strict';
-import { generateChart } from '../../lib/ziwei/algorithm';
-import { SCHOOL_SIHUA_DEFAULT, SCHOOL_STAR_ID_TO_NAME } from '../../lib/ziwei/school-data';
+import { generateChart } from '../../packages/domain/src/ziwei/algorithm';
+import { SCHOOL_SIHUA_DEFAULT, SCHOOL_STAR_ID_TO_NAME } from '../../packages/domain/src/ziwei/school-data';
 
 // 戊 = index 5 in SCHOOL_SIHUA_DEFAULT rows (row0 pad, 甲..癸 = 1..10)
 const wu = SCHOOL_SIHUA_DEFAULT[5];

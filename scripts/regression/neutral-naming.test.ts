@@ -4,7 +4,7 @@
  *   允许：《紫微斗数全书》与白话里「文章笔墨」义的成语（如「…精通」「主掌…」「纯靠…」「落在…上」）。
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
 const NAME = '\u6587\u58a8'; // 两个汉字的品牌简称
@@ -18,9 +18,9 @@ const IDIOMS = new RegExp(`${NAME}(\u7cbe\u901a|\u4e4b\u795e|\u4e4b\u661f)|\u4e3
 const TEXT_EXT = /\.(ts|tsx|js|mjs|cjs|json|css|md|txt|html|svg|xml|yml|yaml)$/i;
 
 function sourceFiles(directory = '.'): string[] {
-  const ignored = new Set(['node_modules', '.next', '.git', '.runtime', '.vercel', 'data', 'dist']);
+  const ignored = new Set(['node_modules', '.next', '.git', '.runtime', '.vercel', 'dist', 'target', 'gen', 'output']);
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    if (ignored.has(entry.name)) return [];
+    if (ignored.has(entry.name) || directory === '.' && entry.name === 'data' || entry.name === 'public' && directory.startsWith('apps')) return [];
     const filename = path.join(directory, entry.name);
     if (entry.isDirectory()) return sourceFiles(filename);
     return entry.isFile() && TEXT_EXT.test(filename) ? [filename] : [];
@@ -32,7 +32,7 @@ const tracked = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
   encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
 });
 const files = tracked.status === 0 && tracked.stdout.trim() === 'true'
-  ? execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter((f) => f && TEXT_EXT.test(f))
+  ? [...new Set([...execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8' }).split('\0').filter((f) => f && TEXT_EXT.test(f)&&existsSync(f)), ...sourceFiles()])]
   : sourceFiles();
 const hits: string[] = [];
 for (const f of files) {

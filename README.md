@@ -12,6 +12,8 @@
 
 </div>
 
+> **2026-10-31 四端迁移**：应用端为 React + TypeScript + Vite + Tauri 2，网站保留 Next.js。新结构、Web 启停、四端构建、数据迁移与实际验收见 [迁移记录](docs/TAURI_MIGRATION_REPORT.md)、[本地开发](docs/LOCAL_DEVELOPMENT.md)、[原生构建](docs/TAURI_BUILD.md)、[GitHub 自动打包](docs/GITHUB_ACTIONS.md)。
+
 **一、项目理念**：紫微斗数是中国传统命理学的瑰宝，倪海厦老师在《天纪》中系统梳理了正宗的紫微斗数体系。我们希望通过技术手段让更多人接触和学习这门学问。
 
 开源排盘算法和知识库，是因为我们相信：**算法是公开的传统智慧，不应该被锁在围墙里**。真正的价值在于解读的深度、用户体验的打磨、以及持续运营的积累。
@@ -268,39 +270,29 @@ Expand-Archive combined.zip
 
 ## 三、快速开始
 
-需要 **Node.js 20.9+（推荐 22 LTS）**。macOS / Linux 可以直接使用脚本（需要 Bash 和 curl）：
+需要 **Node.js 22.12+**（版本见 `.node-version`）；完整网站档案功能需要 Java 17+ JDK。在仓库根目录安装依赖：
 
-```bash
-./scripts/start.sh             # 首次自动安装依赖，后台启动开发服务器
-./scripts/stop.sh              # 关闭脚本启动的服务
+```sh
+npm ci
+./scripts/start.sh web                    # 后台开发，默认 3000
+./scripts/stop.sh web
+./scripts/start.sh web --port 3001
+node scripts/service.mjs status --all
 
-# 自定义端口（默认 3000）
-PORT=3001 ./scripts/start.sh
+npm run build:web
+./scripts/start.sh web --mode production  # 运行 dist/web 独立包
+
+npm run dev                              # 前台 Next 网站，Ctrl+C 退出
+npm run dev:app:web                       # Vite 浏览器样式预览
+npm run dev:app                           # 真正 Tauri 桌面应用
 ```
 
-启动后访问 `http://localhost:3000`。脚本从任何目录调用都可以，日志保存在 `.runtime/dev.log`，可用 `tail -f .runtime/dev.log` 查看；重复启动或关闭均可。更换端口前请先关闭服务。
-
-也可以按下面的方式手动启动（前台运行，按 `Ctrl+C` 关闭）：
-
-```bash
-# 克隆
-git clone https://github.com/Renhuai123/ziwei-doushu.git
-cd ziwei-doushu
-
-# 安装依赖
-npm install
-
-# 配置环境变量（只看排盘可跳过；启用 AI 时填写模型服务配置）
-cp .env.example .env.local
-
-# 启动开发服务器
-npm run dev
-```
+Windows 使用 `scripts/start.ps1` / `scripts/stop.ps1`，参数相同，也可直接用 `node scripts/service.mjs start|stop|status web`。脚本可从其他工作目录调用，日志在 `.runtime/logs/web.log`；不会自动安装依赖、构建或删除数据。Vite 预览不模拟原生档案/密钥成功。完整环境变量、端口、Windows 与部署用法见 [LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md)。
 
 ### 本地 H2 数据库与出生档案
 
 除 Node.js 外，运行档案功能需要 **Java 17+ JDK**。H2 2.5.252 驱动已放在
-`vendor/h2/`，随项目和 Next.js standalone 构建一起提供，无需安装、下载或配置独立数据库服务。
+`apps/web/vendor/h2/`，随项目和 Next.js standalone 构建一起提供，无需安装、下载或配置独立数据库服务。
 `npm run dev`、`npm start` 和 `scripts/start.sh` 会检查 Java 和驱动。
 
 首页点击「立即起盘」后进入独立起盘页面（`/qipan`），可填写出生资料、保存档案，或从最近 4 份档案直接起盘。
@@ -315,9 +307,7 @@ npm run dev
 可在 `.env.local` 设置 `H2_DATA_DIR` 指向其他持久化目录，或用 `JAVA_BIN` 指定 JDK 的 java 路径。
 部署时需使用支持 Java 和持久化可写磁盘的 Node.js 服务环境。
 
-standalone 部署时，复制 `.next/standalone/` 作为服务器目录，并将 `.next/static/`
-复制到服务器目录下的 `.next/static/`（如有 `public/`，也一并复制），然后在该目录执行
-`node server.js`。H2 驱动和 Java 桥接源码已自动包含在内；将 `H2_DATA_DIR` 指向持久化卷。
+生产部署先 `npm run build:web`，复制整个 `dist/web/`，设置绝对持久化目录后执行 `node start.cjs`。包内包含静态资源、H2 驱动与 Java bridge，不包含个人数据库、`.env` 和模型密钥。无需 npm install，仍需 Node 与 Java。原生安装包使用 SQLite，不依赖这个服务。旧档案导出到原生应用见 [DATA_MIGRATION.md](docs/DATA_MIGRATION.md)。
 
 本地验证：
 
@@ -333,11 +323,11 @@ npm run test:profiles # 实际 H2 档案读写、去重、跨进程、重启持�
 
 排盘、命盘展示、合盘起盘都在浏览器里用本仓库的引擎完成，**不需要 API Key**。启用 AI 解读与合盘分析时，点击导航栏的「模型配置」（手机端为齿轮图标），进入 `/settings/model`，填写接口地址、模型名称、API Key 和接口类型。可先「测试连接」，再「保存配置」；保存后立即生效，无需重启。测试会向当前填写的模型服务发送一条简短请求，不会自动保存表单。
 
-页面初次读取 `.env.local` 的配置；保存后的设置优先于环境变量，存放在服务端 `data/ai-config.json`。配置页直接显示当前密钥，可复制或修改，留空保存时保留现有密钥。`AI_CONFIG_DIR` 可指定独立的持久化目录；未设置时使用 `H2_DATA_DIR`，再回退到项目的 `data/`。部署时请为该目录提供持久化可写磁盘，备份时应将其作为包含密钥的私密文件保存。
+页面初次读取 `.env.local` 的配置；保存后的设置优先于环境变量，存放在服务端 `data/ai-config.json`。配置页不回显已有密钥，留空保存时保留现有密钥；清除需单独确认。`AI_CONFIG_DIR` 可指定独立的持久化目录；未设置时使用 `H2_DATA_DIR`，再回退到项目的 `data/`。部署时请为该目录提供持久化可写磁盘，备份时应将其作为包含密钥的私密文件保存。
 
 也可以继续在 `.env.local` 填写默认配置：
 
-- `OPENAI_API_KEY`：模型服务的 Key，配置页会直接显示当前值。
+- `OPENAI_API_KEY`：模型服务的 Key，配置页只显示是否已配置。
 - `OPENAI_BASE_URL`：服务商的 API Base URL，通常形如 `https://你的服务地址/v1`，不使用控制台的 `/keys` 地址。
 - `OPENAI_MODEL`：该 Key 有权限调用的模型名称。
 - `OPENAI_API_MODE`：`responses` 使用 Responses API；`chat` 使用 Chat Completions API。支持 OpenAI、sub2api 及相应兼容服务。
@@ -348,7 +338,7 @@ npm run test:profiles # 实际 H2 档案读写、去重、跨进程、重启持�
 
 ## 四、排盘引擎
 
-排盘内核全部在 `lib/ziwei/`。
+排盘内核全部在 `packages/domain/src/ziwei/`。
 
 ### 4.1 能做到什么（与常见排盘库的差异）
 
@@ -384,13 +374,13 @@ npm run test:profiles # 实际 H2 档案读写、去重、跨进程、重启持�
 | `yunxian-context.ts` | 运限上下文（含童限处理） |
 | `lunar-solar.ts` | 农历 / 公历互转与闰月边界 clamp |
 
-### 4.3 古籍原文（`lib/classics/`）
+### 4.3 古籍原文（`packages/content/src/classics/`）
 
 - **骨髓赋**（`gusuifu.ts`）— 紫微斗数核心歌诀
 - **紫微斗数全集**（`quanji.ts`）— 清代古本
 - **紫微斗数全书**（`quanshu.ts`）— 陈希夷传本
 
-### 4.4 SEO 知识图谱（`lib/seo/`）
+### 4.4 SEO 知识图谱（`packages/content/src/seo/`）
 
 14 主星 × 12 宫位的结构化知识数据，可用于内容生成或知识库构建。
 
@@ -410,15 +400,15 @@ npm run test:profiles # 实际 H2 档案读写、去重、跨进程、重启持�
 
 ## 六、界面是一份 Demo
 
-界面代码在 `app/` 与 `components/`。仓库里的界面是**一套最小可运行示例**，作用是把排盘引擎跑起来、把盘画出来，方便你在它基础上做自己的产品。**线上商业版的界面不在开源范围内**，两者差距很大：
+界面代码在 `packages/features/src/` 与 `packages/ui/src/`，网站包装在 `apps/web/app/`。以下行数对照是原开源快照的历史说明。仓库里的界面是**一套最小可运行示例**，作用是把排盘引擎跑起来、把盘画出来，方便你在它基础上做自己的产品。**线上商业版的界面不在开源范围内**，两者差距很大：
 
 | 页面 / 组件 | 本仓库（Demo） | 线上商业版 |
 |------|------|------|
-| 排盘页 `app/chart/page.tsx` | 75 行 | 1227 行 |
+| 排盘页 `packages/features/src/pages/chart.tsx` | 75 行 | 1227 行 |
 | 解读面板 `InsightPanel` | 467 行 | 5088 行 |
 | 命盘方格 `ChartBoard` | 285 行 | 1334 行 |
 | 宫位格 `PalaceCell` | 201 行 | 1192 行 |
-| 合盘页 `app/heming/page.tsx` | 368 行 | 1937 行 |
+| 合盘页 `packages/features/src/pages/heming.tsx` | 368 行 | 1937 行 |
 
 **Demo 能跑通的**：出生信息表单、命盘方格与宫位详情、本命 / 大限 / 流年切换、古籍阅读器（全文搜索）、命理百科（14 主星 × 12 宫位）、亮暗主题、移动端适配。
 
@@ -430,10 +420,10 @@ npm run test:profiles # 实际 H2 档案读写、去重、跨进程、重启持�
 
 | | 内容 |
 |---|---|
-| ✅ **开源** | 排盘引擎（`lib/ziwei/`）、古籍公版原文（`lib/classics/`）、SEO 知识图谱（`lib/seo/`）、Demo 界面、51.8 万样本数据集、13 维解读数据集 v4.0 |
-| ❌ **线上商业版未开源** | 断语库（`lib/ziwei/db-analysis.ts` 是占位，线上是上万行的 13 主题断语）、商业版 AI 提示词和后端实现、用户系统（登录 / 会员 / 支付）、服务端安全（签名、防刷、水印）、部署配置 |
+| ✅ **开源** | 排盘引擎（`packages/domain/src/ziwei/`）、古籍公版原文（`packages/content/src/classics/`）、SEO 知识图谱（`packages/content/src/seo/`）、Demo 界面、51.8 万样本数据集、13 维解读数据集 v4.0 |
+| ❌ **线上商业版未开源** | 断语库（`packages/domain/src/ziwei/db-analysis.ts` 是占位，线上是上万行的 13 主题断语）、商业版 AI 提示词和后端实现、用户系统（登录 / 会员 / 支付）、服务端安全（签名、防刷、水印）、部署配置 |
 
-如果你需要 AI 解读能力，可以参考 `lib/ziwei/patterns.ts` 和 `heming-knowledge.ts` 里的知识库，结合任意 LLM 自行构建 prompt。
+如果你需要 AI 解读能力，可以参考 `packages/domain/src/ziwei/patterns.ts` 和 `heming-knowledge.ts` 里的知识库，结合任意 LLM 自行构建 prompt。
 
 ---
 
@@ -441,7 +431,7 @@ npm run test:profiles # 实际 H2 档案读写、去重、跨进程、重启持�
 
 这个仓库是**排盘引擎 + 数据集的开放快照**，不是一个全职维护的开源产品，说清楚免得大家猜：
 
-- **引擎同步**：随线上发版同步 `lib/ziwei/` 的引擎层并打 tag；断语库、AI 解读、商业站前端不在同步范围内。
+- **引擎同步**：随线上发版同步 `packages/domain/src/ziwei/` 的引擎层并打 tag；断语库、AI 解读、商业站前端不在同步范围内。
 - **Issue**：会看，但回复可能不及时；带复现步骤或具体盘例（年月日时 + 性别 + 哪一条不对）的问题优先处理。
 - **PR**：欢迎，尤其是回归测试、口径修正、文档。动到排盘口径的改动请附上依据（古籍原文或可核对的对照）。
 
@@ -453,7 +443,7 @@ npm run test:profiles # 实际 H2 档案读写、去重、跨进程、重启持�
 
 | 内容 | 协议 | 简单说 |
 |------|------|--------|
-| **代码**（`lib/`、`app/`、`components/`） | [MIT License](./LICENSE) | 拿去随便用，保留 LICENSE 文件即可 |
+| **代码**（`packages/`、`apps/`、`scripts/`） | [MIT License](./LICENSE) | 拿去随便用，保留 LICENSE 文件即可 |
 | **数据**（Releases 中的 51.8 万样本数据集 v3.0、13 维解读数据集 v4.0） | [CC BY 4.0](./DATASET-LICENSE) · 要求 attribution | 商用也行，**注明数据来源即可** |
 | **古籍原文**（骨髓赋、紫微斗数全集 / 全书等） | Public Domain | 古书都是公有领域，不存在版权 |
 | **倪师原话**（[`docs/tianji-ziwei/`](./docs/tianji-ziwei/)） | [CC BY-NC-SA 4.0](./docs/tianji-ziwei/LICENSE.md) | 可以引用、转载，注明出处；**不许商用**，改编后用同样协议 |
@@ -470,7 +460,7 @@ npm run test:profiles # 实际 H2 档案读写、去重、跨进程、重启持�
 
 ### 技术栈
 
-- **框架**：Next.js 16（App Router）
+- **框架**：网站 Next.js 16（App Router）；应用 React + TypeScript + Vite + Tauri 2
 - **语言**：TypeScript
 - **样式**：Tailwind CSS + CSS Variables 设计系统
 - **排盘**：基于 [iztro](https://github.com/SylarLong/iztro) + lunar-javascript

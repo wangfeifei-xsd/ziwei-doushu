@@ -1,0 +1,29 @@
+{
+  "name": "@ziwei/web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "predev": "node ../../scripts/check-h2.mjs",
+    "dev": "next dev",
+    "build": "next build --webpack",
+    "prestart": "node ../../scripts/check-h2.mjs",
+    "start": "node ../../scripts/run-web.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.27.0",
+    "@types/pg": "^8.20.0",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
+    "ioredis": "^5.10.1",
+    "next": "^16.3.8",
+    "pg": "^8.20.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "@ziwei/domain": "*",
+    "@ziwei/content": "*",
+    "@ziwei/runtime": "*",
+    "@ziwei/ui": "*",
+    "@ziwei/features": "*"
+  }
+}

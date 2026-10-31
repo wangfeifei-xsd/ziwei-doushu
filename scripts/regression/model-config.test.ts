@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { getAIEndpoint, parseAIConfig } from '../../lib/ai/config';
+import { getAIEndpoint, parseAIConfig } from '../../packages/domain/src/ai/config';
 
 const input = { baseURL: 'https://models.example.com/v1', model: 'example-model', mode: 'chat', apiKey: 'test-secret' };
 const chat = parseAIConfig(input);

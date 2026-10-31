@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "name": "@ziwei/domain",
+  "exports": {
+    "./birth": "./src/birth.ts",
+    "./ziwei/*": "./src/ziwei/*.ts",
+    "./ai/*": "./src/ai/*.ts",
+    "./profiles-transfer": "./src/profiles-transfer.ts"
+  },
+  "dependencies": {
+    "iztro": "^2.5.8",
+    "lunar-javascript": "^1.7.3"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

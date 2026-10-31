@@ -1,0 +1,25 @@
+{
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "name": "@ziwei/features",
+  "exports": {
+    "./components/*": "./src/components/*.tsx",
+    "./pages/*": "./src/pages/*.tsx",
+    "./ai/*": "./src/ai/*.ts"
+  },
+  "dependencies": {
+    "@ziwei/domain": "*",
+    "@ziwei/content": "*",
+    "@ziwei/runtime": "*",
+    "@ziwei/ui": "*",
+    "framer-motion": "^11.3.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  }
+}

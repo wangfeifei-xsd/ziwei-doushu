@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "mobile-files",
+  "windows": ["main"],
+  "platforms": ["android", "iOS"],
+  "permissions": ["dialog:allow-open", "fs:allow-open", "fs:allow-read"]
+}
