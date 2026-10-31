@@ -88,9 +88,16 @@ export default function ShareCardCanvas({ chart, birth, highlight }: ShareCardPr
           <div style={{
             width: '34px', height: '34px', borderRadius: '50%',
             background: 'linear-gradient(135deg, #d4a948 0%, #b8922a 100%)',
-            textAlign: 'center', lineHeight: '34px', flexShrink: 0,
+            padding: '4px', flexShrink: 0,
             color: 'white', fontSize: '15px', fontWeight: 700,
-          }}>紫</div>
+          }}>
+            <svg viewBox="0 0 40 40" width="26" height="26" fill="none" aria-hidden="true">
+              <circle cx="20" cy="20" r="18" stroke="white" strokeWidth=".8" />
+              <circle cx="20" cy="20" r="14" stroke="white" strokeWidth=".5" />
+              <path d="M20 2v36M2 20h36M10 12l10 8 10-8M10 28l10-8 10 8" stroke="white" strokeWidth=".6" />
+              <path d="m20 14 1.8 4.2L26 20l-4.2 1.8L20 26l-1.8-4.2L14 20l4.2-1.8Z" fill="white" />
+            </svg>
+          </div>
           <div>
             <div style={{ fontSize: '15px', color: '#3d2f10', fontWeight: 600, letterSpacing: '0.12em', lineHeight: 1.2 }}>紫微命盘</div>
             <div style={{ fontSize: '9px', color: '#a89b7c', letterSpacing: '0.18em', marginTop: '2px' }}>倪海厦正宗 · ZI WEI</div>

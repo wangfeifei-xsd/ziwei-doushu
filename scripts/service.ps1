@@ -10,10 +10,12 @@ function Quote-WindowsArgument([string] $Value) {
     return '"' + $escaped + '"'
 }
 
-$node = (Get-Command node -CommandType Application -ErrorAction Stop).Source
+$node = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Path
+if (-not (Test-Path -LiteralPath $node -PathType Leaf)) { throw 'Cannot locate the Node.js executable.' }
 $serviceArgs = @((Join-Path $PSScriptRoot 'service.mjs')) + $args
 $start = [System.Diagnostics.ProcessStartInfo]::new()
 $start.FileName = $node
+$start.WorkingDirectory = (Get-Location).ProviderPath
 $start.Arguments = ($serviceArgs | ForEach-Object { Quote-WindowsArgument ([string] $_) }) -join ' '
 $start.UseShellExecute = $false
 $start.CreateNoWindow = $true
