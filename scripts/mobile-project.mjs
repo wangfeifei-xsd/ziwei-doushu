@@ -1,13 +1,14 @@
 import {execFileSync} from 'node:child_process';
-import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import path from 'node:path';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const native=path.join(root,'apps/native');const require=createRequire(path.join(native,'package.json'));
-const cli=path.join(path.dirname(require.resolve('@tauri-apps/cli/package.json')),'tauri.js');
+const native=path.join(root,'apps/native');
 const platform=process.argv[2];if(!['android','ios'].includes(platform))throw new Error('指定 android 或 ios。');
-execFileSync(process.execPath,[cli,platform,'init','--ci','--skip-targets-install'],{cwd:native,stdio:'inherit'});
+// Tauri records the package-manager invocation in Gradle/Xcode callbacks.
+// Direct `node tauri.js` initialization without npm's environment records
+// `node tauri ...`, which fails when Gradle builds the native library.
+execFileSync(process.platform==='win32'?'npm.cmd':'npm',['run','tauri','--',platform,'init','--ci','--skip-targets-install'],{cwd:native,stdio:'inherit',shell:process.platform==='win32'});
 if(platform==='android'){
  // CLI 2.12.4 generates SDK 37 defaults, but Google's stable repository and
  // the locked Tauri Android libraries currently provide SDK 36.
