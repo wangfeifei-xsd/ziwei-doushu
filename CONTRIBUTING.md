@@ -33,7 +33,7 @@ npm test             # 排盘回归
 
 - 代码：[MIT](./LICENSE)
 - 样本数据集：[CC BY 4.0](./DATASET-LICENSE)
-- 倪师原话目录 `docs/tianji-ziwei/`：[CC BY-NC-SA 4.0](./docs/tianji-ziwei/LICENSE.md)，不许商用
+- 《天纪》引文目录 `docs/tianji-ziwei/`：[CC BY-NC-SA 4.0](./docs/tianji-ziwei/LICENSE.md)，不许商用
 
 ---
 
