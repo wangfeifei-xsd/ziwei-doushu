@@ -40,7 +40,7 @@ const TOPIC_PROMPTS: Record<string, string> = {
 用一句话概括这个命盘的核心格局与命主气质。
 
 **【主星解读】**
-命宫主星的核心特质，引用倪海厦原话或观点。
+命宫主星的核心特质，参考GitHub开源档案中的相关论述。
 
 **【三方四正】**
 财、官、迁三宫的联动分析及整体格局。
@@ -57,7 +57,7 @@ const TOPIC_PROMPTS: Record<string, string> = {
 一句话定性感情命格。
 
 **【夫妻宫分析】**
-夫妻宫主星、四化，以及倪海厦体系的具体解读。
+夫妻宫主星、四化，以及GitHub开源档案中的具体解读。
 
 **【三方联动】**
 相关宫位对感情的影响。
@@ -74,7 +74,7 @@ const TOPIC_PROMPTS: Record<string, string> = {
 一句话定性事业命格，宜任职或宜创业。
 
 **【官禄宫分析】**
-官禄宫主星、四化，以及倪师对这种配置的判断。
+官禄宫主星、四化，以及GitHub开源档案对这种配置的说明。
 
 **【财帛宫联动】**
 财运与事业的关系，财路来源分析。
@@ -108,7 +108,7 @@ const TOPIC_PROMPTS: Record<string, string> = {
 疾厄宫星曜与健康含义。
 
 **【主要风险】**
-结合倪海厦子午流注理论，分析主要健康隐患与需关注的部位。
+参考GitHub开源档案中的健康主题说明，给出温和的生活方式建议，不依据星曜作疾病诊断。
 
 **【大限健康走势】**
 当下健康趋势与关键时间段。
@@ -119,7 +119,7 @@ const TOPIC_PROMPTS: Record<string, string> = {
   personality: `请深度解析性格特质，按以下结构输出：
 
 **【命宫主星性格】**
-命宫主星的核心性格特质，引用倪师原话。
+命宫主星的核心性格特质，参考GitHub开源档案，使用自己的话说明。
 
 **【三方性格综合】**
 财、官、迁三宫对性格的影响，全貌描绘。
@@ -234,7 +234,7 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua }: I
 ${selectedPalace.name}在命盘中的意义，以及这种星曜配置的整体判断。
 
 **【主星解读】**
-主星在此宫的倪海厦体系解读，引用具体观点。
+主星在此宫的GitHub开源档案解读，说明具体依据。
 
 **【三方四正联动】**
 三方四正宫位对此宫的影响。
@@ -262,10 +262,10 @@ ${selectedPalace.name}在命盘中的意义，以及这种星曜配置的整体�
     const prompt = `请分析【${viewLabel}${selectedSiHua.starName}化${selectedSiHua.siHua}】的飞化影响，按以下结构输出：
 
 **【化${selectedSiHua.siHua}基本含义】**
-化${selectedSiHua.siHua}在倪海厦体系中的核心含义，以及${selectedSiHua.starName}化${selectedSiHua.siHua}的特殊含义。
+化${selectedSiHua.siHua}在GitHub开源档案中的核心含义，以及${selectedSiHua.starName}化${selectedSiHua.siHua}的特殊含义。
 
 **【落宫影响】**
-${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，该宫主管的领域受到何种影响，倪师如何解读。
+${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，该宫主管的领域受到何种影响，GitHub开源档案如何说明。
 
 **【三方四正飞化路径】**
 化${selectedSiHua.siHua}入${palaceName}后，对其三方四正（对宫、两个三合宫）的联动影响。

@@ -10,7 +10,7 @@ import { BRANCHES, STEMS } from './constants';
 import { schoolStarBrightness, type BrightnessSchool } from './school-data';
 import { SCHOOL_AX } from './school-tables.generated';
 import { DEFAULT_LEAP_MONTH } from './school-config';
-// 飞星派工具仅供导出，不再在排盘时调用（倪师《天纪 03》：四化星永远固定不动）
+// 飞星派工具仅供导出，不再在排盘时调用（GitHub开源档案：四化星永远固定不动）
 // import { detectSelfSihua, getSiHuaByStem } from './sihua';
 
 // 紫微斗数主流派（中州派/全书派/主流排盘软件）采用"正月初一换年"规则（农历年口径）。
@@ -461,7 +461,7 @@ export function generateChart(
   const iztroGender = gender === 'male' ? '男' : '女';
 
   // 闰月处理（流派分歧：归本月 / 归下月 / 前后半分）
-  // 默认 = DEFAULT_LEAP_MONTH（2026-09-05 起 split：主流排盘默认口径「月中分界」，150 组金标准盘对照验证；倪师派归下月可经流派抽屉切 next-month）
+  // 默认 = DEFAULT_LEAP_MONTH（2026-09-05 起 split：主流排盘默认口径「月中分界」，150 组金标准盘对照验证；开源档案口径归下月可经流派抽屉切 next-month）
   // 非 split 时先算农历，闰月才切 byLunar；非闰月仍走 bySolar，与 split 行为完全一致
   const leapMode = opts?.leapMonth ?? DEFAULT_LEAP_MONTH;
   const effectiveLunar = resolveEffectiveLunarDate(year, month, day, leapMode);
@@ -612,7 +612,7 @@ export function generateChart(
   const ziweiPalace = palaces.find(p => p.stars.some(s => s.name === '紫微' && s.type === 'major'));
   const ziweiPos    = ziweiPalace?.branch ?? 0;
 
-  // ── 大限数组（倪师《天纪》正统：四化永远固定，大限只看宫位移动）──
+  // ── 大限数组（GitHub开源档案规则：四化永远固定，大限只看宫位移动）──
   // 不再生成 daXians[].siHua / stemIndex / stemName（飞星派字段已下线）
   const daXians: DaXian[] = palaces
     .filter(p => p.daXianAge)
@@ -624,7 +624,7 @@ export function generateChart(
       palaceName:   p.name,
     }));
 
-  // 宫干自化已下线（倪师不主张飞星派宫干自化论）
+  // 宫干自化已下线（开源档案规则不采用飞星派宫干自化论）
 
   const currentDaXianIndex = daXians.findIndex(
     dx => currentAge >= dx.startAge && currentAge <= dx.endAge,

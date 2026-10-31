@@ -19,7 +19,7 @@ export default function KnowledgeHomePage() {
           ← 首页
         </Link>
         <div style={{ fontSize: '12px', color: 'var(--tx-3)', letterSpacing: '0.2em' }}>
-          倪师方法论 · 知识库
+          GitHub开源 · 知识库
         </div>
         <Link href="/library" style={{ fontSize: '12px', color: 'var(--ac)', letterSpacing: '0.2em', textDecoration: 'none' }}>
           古籍 →
@@ -38,7 +38,7 @@ export default function KnowledgeHomePage() {
         </h1>
         <p style={{ fontSize: '14px', color: 'var(--tx-2)', letterSpacing: '0.08em', maxWidth: '600px', margin: '0 auto', lineHeight: 1.7 }}>
           读懂 <strong style={{ color: 'var(--ac)' }}>{ALL_STARS.length}</strong> 颗主星，循星曜之序认识紫微斗数<br />
-          基于倪海厦《天纪》体系编纂 · 含古籍引证
+          依据GitHub开源档案编纂 · 含古籍引证
         </p>
       </div>
 

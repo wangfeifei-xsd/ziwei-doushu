@@ -75,11 +75,25 @@ iOS 单独使用 `tauri.ios.conf.json` 将内部产品/可执行文件名设为 
 
 当前 `com.ziwei.chart` 是开发标识；正式发行前确定自己控制的 identifier，并在首次正式分发前固定。更改标识会改变沙盒/应用身份，已有数据需要单独制定迁移方案；当前界面不提供档案导入、导出。根、web/native package、Cargo、tauri config 的版本均为 `0.1.0`，由 `check:versions` 校验。
 
+应用图标使用 [Sunburst 生成母版](../assets/APP_ICON.md)，执行 `npm run icons:generate` 更新各端尺寸。移动工程初始化后会同步图标；Android CI 校验最终 APK 的桌面入口与图标资源。
+
 Android versionCode 使用 Tauri 的 semver 派生值；iOS 使用相同版本的 build number。商店每次新上传递增 semver，同一代码重试不自动增加版本。不要为重试生成新的应用身份。
 
 Capability 仅开放当前窗口所需剪贴板、选取/保存文件、选取文件动态授权和 HTTP(S) 外链；不开放 shell 或通用文件系统 scope。API Key 不经 SQLite、localStorage 或前端静态资源：默认仅内存，记住时使用 Stronghold + Argon2 + 每设备随机 salt，重启须解锁。
 
 原生 reqwest 发起模型请求并逐块通过 Channel 交给共享 SSE 解析；release 仅允许 HTTPS，不把全量响应伪装为流。`VITE_SITE_URL` 是公开分享站点，不是模型代理。运行时密钥仅在原生配置页填写。
+
+## macOS 提示“已损坏”或无法验证开发者
+
+旧测试包使用 `--no-sign`，只留下 arm64 链接器签名，没有对 `.app` 的 Info.plist 和资源完成封装；`codesign --verify --deep --strict` 会报 `code has no resources but signature indicates they must be present`。新测试包使用 `signingIdentity: "-"` 完整 ad-hoc 签名，必须在生成 DMG 前完成。收集产物时检查 `.app`，并挂载最终 DMG 再检查其中的实际 `.app`；失败时不会上传安装包。
+
+ad-hoc 签名解决资源完整性问题，不等于 Apple Developer ID 与公证。浏览器下载带有隔离属性，测试包首次启动仍可能被 Gatekeeper 拦截。确认来自自己的 GitHub Actions 并校验 SHA256SUMS 后，将 `.app` 拖入 Applications，可在「系统设置 → 隐私与安全性」中允许打开；仍提示损坏时，仅移除本应用的下载隔离属性：
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/紫微命盘.app"
+```
+
+上述命令不修复旧包的失效签名，请使用新构建。对外分发须配置下文 Apple Developer ID 证书及公证凭据，以签名模式构建；不要关闭全局 Gatekeeper。签名模式验证资源签名、公证票据和 Gatekeeper 评估。
 
 ## 正式签名接入
 

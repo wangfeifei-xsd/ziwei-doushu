@@ -5,7 +5,7 @@
  * 每页含完整的 STAR_DB 4 段论断（一句话定调/核心论断/命盘依据/经典出处）
  *
  * SEO 要点：
- *  - title 含主关键词（如"紫微入命宫·倪海厦体系详解"）
+ *  - title 含主关键词（如"紫微入命宫·GitHub开源档案详解"）
  *  - description 用 dingdiao（一句话定调）
  *  - JSON-LD Article 结构化数据
  *  - 内链：同主星其他 12 宫 + 同宫其他 13 主星
@@ -44,7 +44,7 @@ export default function KnowledgePage({ params }: { params: { star: string; topi
     '@type': 'Article',
     headline: `${star}入${data.palaceName}宫 · ${data.topicLabel}`,
     description: data.parsed.dingdiao,
-    author: { '@type': 'Organization', name: '紫微研究 · 倪海厦正宗' },
+    author: { '@type': 'Organization', name: '紫微研究 · GitHub开源' },
     publisher: {
       '@type': 'Organization',
       name: '紫微研究',
@@ -53,7 +53,7 @@ export default function KnowledgePage({ params }: { params: { star: string; topi
     datePublished: '2026-04-28',
     dateModified: '2026-04-28',
     mainEntityOfPage: `${siteURL()}/knowledge/${slug}/${topic}`,
-    articleSection: '紫微斗数 · 倪海厦体系',
+    articleSection: '紫微斗数 · GitHub开源',
     keywords: [`紫微斗数`, star, data.palaceName, data.topicLabel].join(', '),
   };
 
@@ -68,7 +68,7 @@ export default function KnowledgePage({ params }: { params: { star: string; topi
           ← 首页
         </Link>
         <div style={{ fontSize: '12px', color: 'var(--tx-3)', letterSpacing: '0.2em' }}>
-          倪师方法论 · 知识库
+          GitHub开源 · 知识库
         </div>
         <Link href="/qipan" style={{ fontSize: '12px', color: 'var(--ac)', letterSpacing: '0.2em', textDecoration: 'none' }}>
           起盘 →
@@ -90,7 +90,7 @@ export default function KnowledgePage({ params }: { params: { star: string; topi
         {/* 标题区 */}
         <header style={{ marginBottom: '36px' }}>
           <div style={{ fontSize: '11px', color: 'var(--tx-3)', letterSpacing: '0.25em', marginBottom: '8px' }}>
-            {data.topicLabel} · 倪海厦体系详解
+            {data.topicLabel} · GitHub开源档案详解
           </div>
           <h1 style={{ fontSize: 'clamp(28px, 5vw, 44px)', fontWeight: 700, color: 'var(--tx-0)', letterSpacing: '0.1em', lineHeight: 1.2 }}>
             {star}入{data.palaceName}宫
@@ -148,7 +148,7 @@ export default function KnowledgePage({ params }: { params: { star: string; topi
             想看你自己命盘的{data.topicLabel}？
           </div>
           <div style={{ fontSize: '12px', color: 'var(--tx-2)', marginBottom: '16px' }}>
-            输入生辰起盘 · 倪师正宗解读 · AI 答疑伴学
+            输入生辰起盘 · GitHub开源解读 · AI 答疑伴学
           </div>
           <Link href="/qipan" style={{
             display: 'inline-block',
@@ -235,7 +235,7 @@ export default function KnowledgePage({ params }: { params: { star: string; topi
 
       {/* 页脚 */}
       <footer style={{ borderTop: '1px solid rgba(184,146,42,0.15)', padding: '20px 24px', textAlign: 'center', fontSize: '11px', color: 'var(--tx-3)', letterSpacing: '0.1em' }}>
-        <div style={{ marginBottom: '6px' }}>紫微研究 · 基于倪海厦正宗体系 · 仅供学习参考</div>
+        <div style={{ marginBottom: '6px' }}>紫微研究 · 依据GitHub开源档案 · 仅供学习参考</div>
         <div style={{ opacity: 0.85 }}>本平台不构成任何医疗、投资、法律或重大决策建议</div>
       </footer>
     </div>

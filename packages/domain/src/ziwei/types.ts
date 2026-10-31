@@ -65,7 +65,7 @@ export interface Palace {
   isCurrentDaXian?: boolean;
   isMingGong?: boolean;
   isShenGong?: boolean;
-  /** 宫干自化（倪师体系核心） */
+  /** 宫干自化（飞星派扩展字段） */
   selfSihua?: SelfSihuaMark[];
   /** 对宫地支索引（永远 = (branch + 6) % 12） */
   oppositeBranch?: number;

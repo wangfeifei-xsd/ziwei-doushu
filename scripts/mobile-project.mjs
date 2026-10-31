@@ -2,6 +2,7 @@ import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import path from 'node:path';
+import {syncNativeIcons} from './sync-native-icons.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const native=path.join(root,'apps/native');
 const platform=process.argv[2];if(!['android','ios'].includes(platform))throw new Error('指定 android 或 ios。');
@@ -9,6 +10,7 @@ const platform=process.argv[2];if(!['android','ios'].includes(platform))throw ne
 // Direct `node tauri.js` initialization without npm's environment records
 // `node tauri ...`, which fails when Gradle builds the native library.
 execFileSync(process.platform==='win32'?'npm.cmd':'npm',['run','tauri','--',platform,'init','--ci','--skip-targets-install'],{cwd:native,stdio:'inherit',shell:process.platform==='win32'});
+await syncNativeIcons(platform);
 if(platform==='android'){
  // CLI 2.12.4 generates SDK 37 defaults, but Google's stable repository and
  // the locked Tauri Android libraries currently provide SDK 36.

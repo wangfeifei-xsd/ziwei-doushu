@@ -16,9 +16,9 @@ export async function generateMetadata({ params }: { params: Promise<{ star: str
   const data = getKnowledge(star, topic as TopicKey);
   if (!data.exists) return {};
 
-  const title = `${star}入${data.palaceName}宫 · ${data.topicLabel} · 倪海厦体系详解`;
+  const title = `${star}入${data.palaceName}宫 · ${data.topicLabel} · GitHub开源档案详解`;
   const description = data.parsed.dingdiao
-    || `${star}入${data.palaceName}宫的紫微斗数解读 — 基于倪海厦《天纪》体系与古籍《紫微斗数全集》《骨髓赋》。`;
+    || `${star}入${data.palaceName}宫的紫微斗数解读 — 依据GitHub开源档案与古籍《紫微斗数全集》《骨髓赋》。`;
 
   return {
     title,
@@ -33,9 +33,9 @@ export async function generateMetadata({ params }: { params: Promise<{ star: str
       canonical: `${SITE_URL}/knowledge/${slug}/${topic}`,
     },
     keywords: [
-      '紫微斗数', '倪海厦', star, data.palaceName, data.topicLabel,
+      '紫微斗数', 'GitHub开源', star, data.palaceName, data.topicLabel,
       `${star}${data.palaceName}`, `${star}入${data.palaceName}`,
-      `紫微斗数 ${star}`, '倪海厦紫微斗数', '紫微斗数全集',
+      `紫微斗数 ${star}`, '开源紫微斗数', '紫微斗数全集',
     ],
   };
 }

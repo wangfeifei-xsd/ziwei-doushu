@@ -55,7 +55,7 @@ export const FAMOUS_PERSONS: FamousPerson[] = [
     descriptionEn: 'Founder of Huawei',
     year: 1944, month: 10, day: 25, hour: 3, // 卯时
     gender: 'male',
-    notable: '七杀入命格局，一生逆风而行，越打压越强大，倪师七杀理论的活教材',
+    notable: '七杀入命格局，一生逆风而行，越打压越强大，GitHub开源档案中的七杀案例参考',
     notableEn: 'Qi Sha in the Life Palace points to a life strengthened by adversity—the greater the pressure, the stronger the response—making this a vivid case study of traditional Qi Sha theory.',
   },
 
@@ -105,7 +105,7 @@ export const FAMOUS_PERSONS: FamousPerson[] = [
     descriptionEn: 'Taiwanese model and actress',
     year: 1974, month: 11, day: 29, hour: 5, // 巳时
     gender: 'female',
-    notable: '太阴守命的女性美貌典范，命盘完美印证倪师"太阴入命女孩最漂亮"的论断',
+    notable: '太阴守命的女性美貌典范，命盘可作GitHub开源档案中太阴特质的学习参考',
     notableEn: 'Tai Yin guarding the Life Palace is a classic symbol of feminine grace, closely echoing the traditional view that this placement bestows exceptional beauty.',
   },
 

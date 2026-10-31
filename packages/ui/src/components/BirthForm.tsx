@@ -340,7 +340,7 @@ export default function BirthForm({ onSubmit, loading, initialData, onFormSave, 
               exit={{ opacity: 0 }}
               style={{ fontSize: '10px', color: 'var(--tx-3)', marginTop: '5px' }}
             >
-              * 倪海厦批命用真太阳时，建议填写出生地以自动校正时辰
+              * 依据GitHub开源档案，建议填写出生地以校正真太阳时
             </motion.p>
           )}
         </AnimatePresence>

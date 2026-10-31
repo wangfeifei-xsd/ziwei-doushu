@@ -13,6 +13,7 @@ for(const theme of ['dark','light'])test(`${theme}: 完整路由、两种尺寸�
   await page.setViewportSize({width,height:1000});
   for(const route of routes){
    await page.goto(url(route,native));await expect(page.locator('h1').first()).toBeVisible();
+   await expect(page.locator('body')).not.toContainText(/倪师|倪海厦|为师/);
    await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
    await page.waitForTimeout(1100);
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2),`${route} width=${width}`).toBe(true);
@@ -20,6 +21,7 @@ for(const theme of ['dark','light'])test(`${theme}: 完整路由、两种尺寸�
   }
   await page.goto(url(chart,native));await expect(page.getByRole('button',{name:'分享命盘',exact:true})).toBeVisible();
   await page.waitForTimeout(1400);
+  await expect(page.locator('.insight-heading')).toContainText('GitHub开源档案');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),`命盘 ${width}`).toBe(true);
   await page.screenshot({path:path.join(dir,`${info.project.name}-${theme}-${width}-chart-generated.png`),fullPage:true});
  }

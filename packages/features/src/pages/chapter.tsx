@@ -99,7 +99,7 @@ export default function ChapterPage({ params }: { params: { book: string; chapte
                   {p.translation}
                 </div>
               )}
-              {p.niNote && (
+              {p.sourceNote && (
                 <div style={{
                   marginTop: '8px',
                   marginLeft: '36px',
@@ -110,8 +110,8 @@ export default function ChapterPage({ params }: { params: { book: string; chapte
                   color: 'var(--tx-2)',
                   lineHeight: 1.8,
                 }}>
-                  <span style={{ fontSize: '10px', color: 'var(--ji)', marginRight: '6px' }}>倪师注</span>
-                  {p.niNote}
+                  <span style={{ fontSize: '10px', color: 'var(--ji)', marginRight: '6px' }}>GitHub开源注解</span>
+                  {p.sourceNote}
                 </div>
               )}
             </div>

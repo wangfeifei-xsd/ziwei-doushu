@@ -10,8 +10,8 @@ Build 的 `verify` 调用可复用 CI：Ubuntu 做全 workspace 类型/边界、
 
 - Ubuntu 24.04 → Next standalone、Vite 预览；独立目录 HTTP/资源/H2 CRUD 冒烟。
 - Windows 2025 → x64 MSVC NSIS `.exe`。
-- macOS 15 → Apple Silicon `.app`、`.dmg`，核验二进制架构。
-- Ubuntu 24.04 → arm64 Android debug APK，全部原生库 16 KiB 页与 ZIP 对齐检查；正式签名时增加 APK/AAB。
+- macOS 15 → Apple Silicon `.app`、`.dmg`，完整 ad-hoc 签名并挂载 DMG 校验实际应用；正式签名模式要求 Developer ID 与公证。
+- Ubuntu 24.04 → arm64 Android debug APK，全部原生库 16 KiB 页与 ZIP 对齐检查，以及最终 APK 桌面启动入口与图标校验；正式签名时增加 APK/AAB。
 - macOS 15 → 按 runner 架构选择 iOS 模拟器 `.app`，安装启动并截图；正式签名时增加真机 IPA。
 
 desktop matrix 设置 `fail-fast: false`；平台失败不阻断其他独立平台完成。总汇总 job 会在任何必需目标失败/取消时报失败，不能把部分成功描述为四端完成。手动选择一个平台时仍先执行完整公共检查。
@@ -37,7 +37,7 @@ Web 解开 standalone tar 后，在支持 Node 22.12+ / Java 17+ JDK 的主机�
 - `build` environment 用于普通编译；`release` environment 可设置审批和受控 secrets。
 - 签名 secrets 名称和含义见 [TAURI_BUILD.md](TAURI_BUILD.md)。Android、Apple、Windows 证书相互独立。
 
-普通分支不需要签名材料，输出名称分别为 unsigned/debug/simulator。手动 `workflow_dispatch` 可选 `all/web/windows/macos/android/ios`，`signing=true` 表示**要求**正式签名。标签必须 `v` + 应用 semver（如 `v0.1.0`）；仅当 `ENABLE_SIGNING=true` 时标签要求签名，否则仍明确输出测试包。首次配置签名前应先在受控环境手动验证。
+普通分支不需要签名材料，输出名称分别为 Windows unsigned、macOS adhoc、Android debug、iOS simulator。macOS 测试包附首次打开说明；ad-hoc 不代表已通过 Apple 公证。手动 `workflow_dispatch` 可选 `all/web/windows/macos/android/ios`，`signing=true` 表示**要求**正式签名。标签必须 `v` + 应用 semver（如 `v0.1.0`）；仅当 `ENABLE_SIGNING=true` 时标签要求签名，否则仍明确输出测试包。首次配置签名前应先在受控环境手动验证。
 
 工作流只有只读 contents 权限，不自动创建 Release、不向应用商店上传。证书临时文件构建后清理，iOS profile 验证 bundle/team。新的开发 push 可以取消同分支过时构建，版本签名任务不按普通开发规则取消。
 

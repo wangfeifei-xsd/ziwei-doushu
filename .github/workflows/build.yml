@@ -144,7 +144,7 @@ jobs:
             done
             npm run tauri -w @ziwei/native -- build --ci --target '${{ matrix.target }}' --bundles app,dmg
           else
-            npm run tauri -w @ziwei/native -- build --ci --target '${{ matrix.target }}' --bundles app,dmg --no-sign
+            APPLE_SIGNING_IDENTITY=- npm run tauri -w @ziwei/native -- build --ci --target '${{ matrix.target }}' --bundles app,dmg
           fi
           file 'apps/native/src-tauri/target/${{ matrix.target }}/release/ziwei-native' | grep arm64
       - name: Package desktop artifacts
@@ -154,15 +154,15 @@ jobs:
           BUILD_PLATFORM: ${{ matrix.platform }}
           BUILD_ARCH: ${{ matrix.target }}
           BUILD_COMMAND: tauri build --ci --target ${{ matrix.target }}
-          BUILD_SIGNING: ${{ env.SIGN_BUILD == 'true' && 'production-signed' || 'unsigned-local-testing' }}
-          BUILD_VALIDATION: Native target compiled; architecture verified; installation and system dialogs require platform acceptance
+          BUILD_SIGNING: ${{ env.SIGN_BUILD == 'true' && 'production-signed' || (matrix.platform == 'macos' && 'ad-hoc-local-testing-not-notarized' || 'unsigned-local-testing') }}
+          BUILD_VALIDATION: ${{ matrix.platform == 'macos' && 'ARM64 compiled; app resource signatures verified inside mounted DMG; Gatekeeper distribution requires Developer ID and notarization' || 'x64 PE executable and NSIS installer verified; installation requires Windows acceptance' }}
         run: |
           node scripts/collect-desktop.mjs '${{ matrix.platform }}' '${{ matrix.target }}'
           node scripts/build-manifest.mjs dist/artifacts
       - uses: actions/upload-artifact@v4
         if: steps.select.outputs.enabled == 'true'
         with:
-          name: ${{ matrix.platform }}-${{ matrix.target }}-${{ env.SIGN_BUILD == 'true' && 'signed' || 'unsigned' }}-${{ github.sha }}
+          name: ${{ matrix.platform }}-${{ matrix.target }}-${{ env.SIGN_BUILD == 'true' && 'signed' || (matrix.platform == 'macos' && 'adhoc' || 'unsigned') }}-${{ github.sha }}
           path: dist/artifacts/*
           if-no-files-found: error
           retention-days: 14
@@ -228,6 +228,8 @@ jobs:
           fi
       - name: Verify Android native library page alignment
         run: python3 scripts/check-android-alignment.py
+      - name: Verify Android launcher and packaged icon resources
+        run: node scripts/check-android-launcher.mjs
       - name: Collect APK and AAB
         env:
           BUILD_PLATFORM: android

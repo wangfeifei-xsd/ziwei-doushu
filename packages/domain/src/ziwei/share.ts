@@ -28,7 +28,7 @@ export function calcTrueSolarBranch(clockHour: number, clockMinute: number, long
 
 /** BirthFormState → BirthInfo
  *
- * 子时规则（倪海厦体系/三合派标准）：
+ * 子时规则（GitHub开源档案/三合派规则）：
  * · 23:00-23:59 = 晚子时，**按次日**排盘（日期 +1）
  * · 00:00-00:59 = 早子时，按本日排盘
  * 这与「时辰支同为子(0)」并不冲突——子时分早晚两段，需要在日期上区分。
