@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.runtime/
+data/
+*.mv.db
+*.lock.db
+*.trace.db
+.vercel/
+.env*
+!.env.example
+dist/
+*.tsbuildinfo
+.DS_Store
+node_modules
+.idea
