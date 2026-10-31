@@ -144,6 +144,9 @@ jobs:
             done
             npm run tauri -w @ziwei/native -- build --ci --target '${{ matrix.target }}' --bundles app,dmg
           else
+            # An absent GitHub secret becomes an empty environment variable.
+            # Tauri attempts PKCS#12 import whenever APPLE_CERTIFICATE is set.
+            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
             APPLE_SIGNING_IDENTITY=- npm run tauri -w @ziwei/native -- build --ci --target '${{ matrix.target }}' --bundles app,dmg
           fi
           file 'apps/native/src-tauri/target/${{ matrix.target }}/release/ziwei-native' | grep arm64

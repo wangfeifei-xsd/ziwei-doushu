@@ -87,6 +87,8 @@ Capability 仅开放当前窗口所需剪贴板、选取/保存文件、选取�
 
 旧测试包使用 `--no-sign`，只留下 arm64 链接器签名，没有对 `.app` 的 Info.plist 和资源完成封装；`codesign --verify --deep --strict` 会报 `code has no resources but signature indicates they must be present`。新测试包使用 `signingIdentity: "-"` 完整 ad-hoc 签名，必须在生成 DMG 前完成。收集产物时检查 `.app`，并挂载最终 DMG 再检查其中的实际 `.app`；失败时不会上传安装包。
 
+CI 的测试构建会先移除 Apple 证书及公证环境变量。GitHub 将未配置的 secret 展开为空字符串，而 Tauri 仍会尝试导入已存在的 `APPLE_CERTIFICATE`；仅设为空值不能跳过证书导入。
+
 ad-hoc 签名解决资源完整性问题，不等于 Apple Developer ID 与公证。浏览器下载带有隔离属性，测试包首次启动仍可能被 Gatekeeper 拦截。确认来自自己的 GitHub Actions 并校验 SHA256SUMS 后，将 `.app` 拖入 Applications，可在「系统设置 → 隐私与安全性」中允许打开；仍提示损坏时，仅移除本应用的下载隔离属性：
 
 ```sh
