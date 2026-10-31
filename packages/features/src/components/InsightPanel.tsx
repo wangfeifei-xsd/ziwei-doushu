@@ -331,7 +331,7 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
       <div className="insight-heading">
         <p className="eyebrow">以盘为镜 · 以理为引</p>
         <h2>命盘解读</h2>
-        <p>循倪师体系，结合星曜与宫位，探索人生的更多可能。</p>
+        <p>以GitHub开源档案为依据，结合星曜与宫位，探索人生的更多可能。</p>
       </div>
       {/* ── Topic buttons ── */}
       <div className="flex-shrink-0 px-2 pt-2.5 pb-2" style={{ borderBottom: '1px solid var(--t-border)' }}>

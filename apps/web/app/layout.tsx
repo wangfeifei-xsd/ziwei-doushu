@@ -9,16 +9,16 @@ import { SITE_URL } from '@/lib/site';
 import SiteHeader from '@ziwei/ui/components/SiteHeader';
 
 export const metadata: Metadata = {
-  title: '紫微命盘 · 倪海厦正宗紫微斗数',
-  description: '基于倪海厦正宗紫微斗数体系，AI深度解读您的命盘格局、大限流年、感情事业财富健康全方位解析',
-  keywords: '紫微斗数, 倪海厦, 紫微斗数全集, 紫微斗数全书, 骨髓赋, 命盘, 命理, 14主星, 12宫位',
+  title: '紫微命盘 · 开源紫微斗数',
+  description: '以GitHub开源档案为依据，提供紫微斗数排盘与AI命盘解读，探索星曜格局、大限流年与人生的更多可能',
+  keywords: '紫微斗数, 开源体系, 紫微斗数全集, 紫微斗数全书, 骨髓赋, 命盘, 命理, 14主星, 12宫位',
   metadataBase: new URL(SITE_URL),
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: '紫微命盘 · 倪海厦正宗紫微斗数',
-    description: '基于倪海厦正宗紫微斗数体系，AI深度解读您的命盘格局、大限流年、感情事业财富健康全方位解析',
+    title: '紫微命盘 · 开源紫微斗数',
+    description: '以GitHub开源档案为依据，提供紫微斗数排盘与AI命盘解读，探索星曜格局、大限流年与人生的更多可能',
     url: SITE_URL,
     siteName: '紫微研究',
     locale: 'zh_CN',

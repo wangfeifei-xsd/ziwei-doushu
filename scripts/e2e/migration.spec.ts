@@ -4,7 +4,6 @@ import path from 'node:path';
 import {ALL_BOOKS} from '@ziwei/content/classics';
 const routes=['/','/qipan','/chart','/heming','/profiles','/settings/model','/knowledge','/library','/library/search?q=紫微','/privacy','/terms','/preview'];
 const chart='/chart?y=2000&m=1&d=31&h=23&mi=30&g=f&n=迁移测试';
-test.beforeEach(async({page})=>{await page.addInitScript(()=>{localStorage.setItem('announcement_seen_2026-05-01','1');localStorage.setItem('ziwei_app_welcome_1','1');});});
 function url(route:string,native:boolean){return native?`/#${route}`:route;}
 for(const theme of ['dark','light'])test(`${theme}: 完整路由、两种尺寸与截图`,async({page},info)=>{
  const native=info.project.name==='vite';test.setTimeout(180000);const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
@@ -17,7 +16,7 @@ for(const theme of ['dark','light'])test(`${theme}: 完整路由、两种尺寸�
    await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
    await page.waitForTimeout(1100);
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2),`${route} width=${width}`).toBe(true);
-   if(['/','/chart','/settings/model','/library'].includes(route))await page.screenshot({path:path.join(dir,`${info.project.name}-${theme}-${width}-${route.replaceAll('/','_')||'home'}.png`),fullPage:true});
+   if(['/','/chart','/profiles','/settings/model','/library'].includes(route))await page.screenshot({path:path.join(dir,`${info.project.name}-${theme}-${width}-${route.replaceAll('/','_')||'home'}.png`),fullPage:true});
   }
   await page.goto(url(chart,native));await expect(page.getByRole('button',{name:'分享命盘',exact:true})).toBeVisible();
   await page.waitForTimeout(1400);

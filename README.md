@@ -307,7 +307,7 @@ Windows 使用 `scripts/start.ps1` / `scripts/stop.ps1`，参数相同，也可�
 可在 `.env.local` 设置 `H2_DATA_DIR` 指向其他持久化目录，或用 `JAVA_BIN` 指定 JDK 的 java 路径。
 部署时需使用支持 Java 和持久化可写磁盘的 Node.js 服务环境。
 
-生产部署先 `npm run build:web`，复制整个 `dist/web/`，设置绝对持久化目录后执行 `node start.cjs`。包内包含静态资源、H2 驱动与 Java bridge，不包含个人数据库、`.env` 和模型密钥。无需 npm install，仍需 Node 与 Java。原生安装包使用 SQLite，不依赖这个服务。旧档案导出到原生应用见 [DATA_MIGRATION.md](docs/DATA_MIGRATION.md)。
+生产部署先 `npm run build:web`，复制整个 `dist/web/`，设置绝对持久化目录后执行 `node start.cjs`。包内包含静态资源、H2 驱动与 Java bridge，不包含个人数据库、`.env` 和模型密钥。无需 npm install，仍需 Node 与 Java。原生安装包使用 SQLite，不依赖这个服务。档案保存与离线维护见 [DATA_MIGRATION.md](docs/DATA_MIGRATION.md)；当前界面不提供档案导入、导出。
 
 本地验证：
 

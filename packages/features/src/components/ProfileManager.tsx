@@ -1,6 +1,5 @@
 'use client';
 import { useModal } from '@ziwei/runtime/modal';
-import ProfileTransferPanel from './ProfileTransferPanel';
 import { useServices } from '@ziwei/runtime/services';
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -200,7 +199,6 @@ export default function ProfileManager() {
         </button>
       </div>
 
-      <ProfileTransferPanel onImported={() => void load()} />
       <dl className={styles.stats} aria-label="档案概览">
         {([['全部档案', 'all'], ['男性档案', 'male'], ['女性档案', 'female'], ['时辰不详', 'unknown']] as const).map(([label, key]) => (
           <div key={key}><dt>{label}</dt><dd>{(loading || loadError) && profiles.length === 0 ? '—' : counts[key]}<span>份</span></dd></div>

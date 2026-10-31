@@ -73,7 +73,7 @@ iOS 单独使用 `tauri.ios.conf.json` 将内部产品/可执行文件名设为 
 
 ## 标识、版本与权限
 
-当前 `com.ziwei.chart` 是开发标识；正式发行前确定自己控制的 identifier，并在首次正式分发前固定。更改标识会改变沙盒/应用身份，已有档案通过 JSON 转移。根、web/native package、Cargo、tauri config 的版本均为 `0.1.0`，由 `check:versions` 校验。
+当前 `com.ziwei.chart` 是开发标识；正式发行前确定自己控制的 identifier，并在首次正式分发前固定。更改标识会改变沙盒/应用身份，已有数据需要单独制定迁移方案；当前界面不提供档案导入、导出。根、web/native package、Cargo、tauri config 的版本均为 `0.1.0`，由 `check:versions` 校验。
 
 Android versionCode 使用 Tauri 的 semver 派生值；iOS 使用相同版本的 build number。商店每次新上传递增 semver，同一代码重试不自动增加版本。不要为重试生成新的应用身份。
 
