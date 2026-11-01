@@ -162,6 +162,7 @@ pub async fn model_clear(state: State<'_, AppState>) -> Result<Value> {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum WireEvent {
     Chunk { bytes: Vec<u8> },
+    End { error: Option<String> },
 }
 #[tauri::command]
 pub async fn ai_begin(state: State<'_, AppState>, request_id: String) -> Result<()> {
@@ -216,10 +217,18 @@ async fn timed_run(
     token: CancellationToken,
     timeout: Duration,
 ) -> Result<()> {
-    tokio::select! {
+    let result = tokio::select! {
         _=token.cancelled()=>Err("请求已取消。".into()),
-        result=tokio::time::timeout(timeout,run(state,body,channel,draft))=>result.unwrap_or_else(|_|Err("模型响应超时，请重试。".into()))
-    }
+        result=tokio::time::timeout(timeout,run(state,body,channel.clone(),draft))=>result.unwrap_or_else(|_|Err("模型响应超时，请重试。".into()))
+    };
+    // Channel ordering includes this marker, unlike the independent command
+    // reply which can overtake large chunks fetched asynchronously by the UI.
+    channel
+        .send(WireEvent::End {
+            error: result.as_ref().err().cloned(),
+        })
+        .map_err(|_| "界面已离开，响应已取消。")?;
+    result
 }
 async fn run(
     state: &AppState,
@@ -414,12 +423,18 @@ mod tests {
             .await
             .unwrap();
             let chunks = received.lock().unwrap();
+            assert_eq!(
+                serde_json::from_str::<Value>(chunks.last().unwrap()).unwrap(),
+                json!({"type":"end","error":null}),
+                "the final channel message closes the stream after all chunks"
+            );
             assert!(
                 chunks.len() > 2,
                 "native channel must deliver real partial chunks"
             );
             let bytes: Vec<u8> = chunks
                 .iter()
+                .take(chunks.len() - 1)
                 .flat_map(|s| {
                     serde_json::from_str::<Value>(s).unwrap()["bytes"]
                         .as_array()
@@ -512,10 +527,17 @@ mod tests {
             (302, "暂时不可用"),
         ] {
             let (url, server) = mock(status, 0);
+            let received = Arc::new(Mutex::new(Vec::new()));
+            let out = received.clone();
             let error = timed_run(
                 &state,
                 json!({"messages":[]}),
-                Channel::new(|_| Ok(())),
+                Channel::new(move |event| {
+                    if let tauri::ipc::InvokeResponseBody::Json(data) = event {
+                        out.lock().unwrap().push(data);
+                    }
+                    Ok(())
+                }),
                 Some(draft(url, "chat")),
                 CancellationToken::new(),
                 Duration::from_secs(5),
@@ -524,6 +546,16 @@ mod tests {
             .unwrap_err();
             assert!(error.contains(expected));
             assert!(!error.contains("fixture-only-key"));
+            assert_eq!(
+                received
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .map(|data| serde_json::from_str::<Value>(data).unwrap())
+                    .collect::<Vec<_>>(),
+                vec![json!({"type":"end","error":error})],
+                "transport failures must also terminate the ordered channel"
+            );
             server.join().unwrap();
         }
         let (url, server) = mock(200, 150);

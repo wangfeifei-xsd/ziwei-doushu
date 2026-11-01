@@ -2,7 +2,8 @@ import { test, expect, type Page } from '@playwright/test';
 
 type NativeFixture = {
   completeUnlock(): void;
-  response: 'valid' | 'malformed';
+  completeStream(): void;
+  response: 'valid' | 'malformed' | 'delayed-completion' | 'incomplete' | 'channel-error';
   requests: number;
 };
 
@@ -15,7 +16,7 @@ async function nativeSettings(page: Page, locked = true) {
       configured: !initiallyLocked, source: 'saved',
     };
     const fixture = {
-      completeUnlock: () => {}, response: 'valid', requests: 0,
+      completeUnlock: () => {}, completeStream: () => {}, response: 'valid', requests: 0,
     };
     Object.assign(window, { isTauri: true, __nativeFixture: fixture, __TAURI_INTERNALS__: {
       transformCallback: () => 1, unregisterCallback: () => {},
@@ -36,11 +37,38 @@ async function nativeSettings(page: Page, locked = true) {
         if (command === 'ai_stream') {
           if (settings.locked) throw '密钥库已锁定，请先解锁。';
           fixture.requests++;
-          const channel = args.channel as { onmessage(event: { type: string; bytes: number[] }): void };
+          const channel = args.channel as { onmessage(event: { type: string; bytes?: number[]; error?: string | null }): void };
+          if (fixture.response === 'delayed-completion') {
+            const answer = '模型已返回完整解读。请结合命盘与实际情况作判断。';
+            const delta = `data: ${JSON.stringify({ type: 'response.output_text.delta', delta: answer })}\n\n`;
+            // Responses completion repeats output and can span multiple native
+            // IPC chunks. The invocation may resolve before large chunks arrive.
+            const completion = `data: ${JSON.stringify({ type: 'response.completed', response: {
+              status: 'completed', instructions: '隔离回归测试说明。'.repeat(2000),
+              output: [{ content: [{ type: 'output_text', text: answer }] }],
+            } })}\n\n`;
+            const bytes = new TextEncoder().encode(delta + completion);
+            channel.onmessage({ type: 'chunk', bytes: Array.from(bytes.slice(0, 16_384)) });
+            fixture.completeStream = () => {
+              for (let start = 16_384; start < bytes.length; start += 16_384) {
+                channel.onmessage({ type: 'chunk', bytes: Array.from(bytes.slice(start, start + 16_384)) });
+              }
+              channel.onmessage({ type: 'end', error: null });
+            };
+            return null;
+          }
+          if (fixture.response === 'incomplete' || fixture.response === 'channel-error') {
+            channel.onmessage({ type: 'chunk', bytes: Array.from(new TextEncoder().encode(
+              'data: {"type":"response.output_text.delta","delta":"只返回了一部分"}\n\n',
+            )) });
+            channel.onmessage({ type: 'end', error: fixture.response === 'channel-error' ? '模型连接中断。' : null });
+            return null;
+          }
           const data = fixture.response === 'malformed'
             ? 'data: this-is-not-json\n\n'
             : 'event: response.output_text.delta\rdata: {"type":"response.output_text.delta","delta":"OK"}\r\revent: response.completed\rdata: {"type":"response.completed","response":{"status":"completed"}}\r\r';
           channel.onmessage({ type: 'chunk', bytes: Array.from(new TextEncoder().encode(data)) });
+          channel.onmessage({ type: 'end', error: null });
         }
         return null;
       },
@@ -86,4 +114,38 @@ test('原生 Responses：异常 JSON 显示可读错误，重试可连接', asyn
   await page.evaluate(() => { (window as unknown as { __nativeFixture: NativeFixture }).__nativeFixture.response = 'valid'; });
   await page.getByRole('button', { name: '测试连接', exact: true }).click();
   await expect(page.getByText(/连接成功，模型已返回有效响应/)).toBeVisible();
+});
+
+test('原生 Responses：正文返回后等待迟到的完成分片，连续追问不追加格式错误', async ({ page }, info) => {
+  test.skip(info.project.name !== 'vite', '真实原生适配器配合可控 IPC 到达顺序。');
+  await nativeSettings(page, false);
+  await page.evaluate(() => { (window as unknown as { __nativeFixture: NativeFixture }).__nativeFixture.response = 'delayed-completion'; });
+  await page.goto('/#/chart?y=2000&m=1&d=31&h=23&mi=30&g=f&n=流式回归');
+  const panel = page.locator('.insight-panel');
+  const followup = page.getByRole('textbox', { name: '命盘解读追问' });
+  for (let round = 1; round <= 2; round++) {
+    await expect(panel.getByText('模型已返回完整解读。请结合命盘与实际情况作判断。', { exact: true })).toHaveCount(round);
+    await expect(followup).toBeDisabled();
+    await page.evaluate(() => (window as unknown as { __nativeFixture: NativeFixture }).__nativeFixture.completeStream());
+    await expect(followup).toBeEnabled();
+    await expect(panel).not.toContainText('数据格式异常');
+    await expect(panel.getByText('命理解读')).toHaveCount(round);
+    if (round === 1) {
+      await followup.fill('请补充事业方面的建议');
+      await panel.getByRole('button', { name: '追问', exact: true }).click();
+    }
+  }
+  expect(await page.evaluate(() => (window as unknown as { __nativeFixture: NativeFixture }).__nativeFixture.requests)).toBe(2);
+  await panel.screenshot({ path: '.runtime/android-ai-fix/responses-completion-after.png' });
+});
+
+test('原生 Responses：通道结束后仍报告不完整回复和真实网络错误', async ({ page }, info) => {
+  test.skip(info.project.name !== 'vite', '验证新增通道结束消息的成功与失败处理。');
+  await nativeSettings(page, false);
+  for (const [response, message] of [['incomplete', '模型响应不完整'], ['channel-error', '模型连接中断']] as const) {
+    await page.evaluate(value => { (window as unknown as { __nativeFixture: NativeFixture }).__nativeFixture.response = value; }, response);
+    await page.getByRole('button', { name: '测试连接', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText(message);
+    await expect(page.getByText(/连接成功，模型已返回有效响应/)).not.toBeVisible();
+  }
 });

@@ -116,4 +116,5 @@ xattr -dr com.apple.quarantine "/Applications/紫微命盘.app"
 - 模型锁定后需要解锁；空 Key 保存保留旧值，「清除密钥」需单独确认。仅本次使用的 Key 在应用退出后消失。
 - Android 调试 APK 也为 Argon2、scrypt 和 Salsa20 启用编译优化；加密算法、工作参数与已有 Stronghold 文件格式不变，避免调试包解锁耗时过长。解锁时显示等待状态，并暂停测试、保存等操作；成功或密码错误都在密码框旁提示。
 - Responses 使用 `Accept: text/event-stream` 请求流，解析支持 LF、CRLF、CR 及跨分片换行；异常 JSON 显示可读错误，不直接显示服务端原始数据。协议参考 [OpenAI Responses 流式响应](https://developers.openai.com/api/docs/guides/streaming-responses)。
+- 原生流通过同一 Tauri Channel 依次发送数据分片与 `end` 消息；前端仅在收到 `end` 或协议完成事件后关闭流。命令调用成功不代表大分片已交付，提前关闭会把 Responses 末尾 JSON 截断，并在完整正文后误报格式异常。浏览器回归覆盖命令先返回、完成事件超过 16 KiB 且延迟交付、连续追问及真实异常 JSON。
 - 本机缺 Xcode、Android SDK 或 Windows MSVC 时用对应 GitHub runner 构建，并在报告中保留安装验证差距。

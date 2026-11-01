@@ -41,12 +41,17 @@ export async function createNativeServices(websiteURL: string) {
     let settled = false;
     const cancel = async () => { if(!settled) await call('ai_cancel',{requestId}).catch(()=>{}); };
     const {stream:bodyStream,enqueue,finish} = createAIByteStream(cancel);
-    const channel = new Channel<{type:'chunk'; bytes:number[]}>();
+    const channel = new Channel<{type:'chunk'; bytes:number[]} | {type:'end'; error:string | null}>();
     const abort = () => { finish(new DOMException('请求已取消','AbortError')); void cancel(); };
-    channel.onmessage = event => enqueue(event.bytes);
+    channel.onmessage = event => {
+      if (event.type === 'chunk') enqueue(event.bytes);
+      else finish(event.error ? new Error(event.error) : undefined);
+    };
     signal.addEventListener('abort',abort,{once:true});
     if(signal.aborted)abort();
-    const task = call<void>('ai_stream',{requestId,body,channel,draft:draft ?? null}).then(()=>{settled=true;finish();},error=>{settled=true;finish(error);});
+    // Large Channel messages use asynchronous IPC fetches. Invocation success
+    // can arrive first; only the ordered channel end can close the byte stream.
+    const task = call<void>('ai_stream',{requestId,body,channel,draft:draft ?? null}).then(()=>{settled=true;},error=>{settled=true;finish(error);});
     try { yield* upstreamEvents(bodyStream,mode); }
     finally { signal.removeEventListener('abort',abort); active.delete(requestId); await cancel(); await task; }
   }
