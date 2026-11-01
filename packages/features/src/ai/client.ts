@@ -10,6 +10,24 @@ export function requestBody(mode: AIAPIMode, model: string, messages: AIMessage[
   } : { model, messages, stream: true, max_completion_tokens: 4096 };
 }
 
+type StreamEvent = {
+  type?: string;
+  error?: unknown;
+  delta?: unknown;
+  response?: { error?: unknown; status?: unknown };
+  choices?: { delta?: { content?: unknown } }[];
+};
+
+function parseEvent(data: string): StreamEvent {
+  try {
+    const event: unknown = JSON.parse(data);
+    if (!event || typeof event !== 'object' || Array.isArray(event)) throw new Error();
+    return event as StreamEvent;
+  } catch {
+    throw new Error('模型返回的数据格式异常，请确认所选接口类型与服务商一致后重试。');
+  }
+}
+
 export async function* normalizedEvents(response: Response): AsyncGenerator<AIEvent> {
   if (!response.ok) {
     const data = await response.json().catch(() => null);
@@ -18,22 +36,25 @@ export async function* normalizedEvents(response: Response): AsyncGenerator<AIEv
   if (!response.body) throw new Error('模型未返回响应。');
   for await (const data of readSSEData(response.body)) {
     if (data === '[DONE]') { yield { type: 'done' }; return; }
-    const event = JSON.parse(data);
-    if (!event || typeof event !== 'object') throw new Error('模型响应格式异常。');
+    const event = parseEvent(data);
     if (typeof event.error === 'string') throw new Error(event.error);
-    if (typeof event.delta?.text === 'string') yield { type: 'delta', text: event.delta.text };
+    const delta = event.delta as { text?: unknown } | undefined;
+    if (typeof delta?.text === 'string') yield { type: 'delta', text: delta.text };
   }
   throw new Error('解读连接已中断，请重试。');
 }
 
 export async function* upstreamEvents(body: ReadableStream<Uint8Array>, mode: AIAPIMode): AsyncGenerator<AIEvent> {
   for await (const data of readSSEData(body)) {
-    if (data === '[DONE]') { yield { type: 'done' }; return; }
-    const event = JSON.parse(data);
-    if (event.error || ['error', 'response.failed', 'response.incomplete'].includes(event.type)) throw new Error('模型响应失败或不完整，请检查模型配置。');
-    if (mode === 'responses' && event.type === 'response.completed') { yield { type: 'done' }; return; }
+    if (data.trim() === '[DONE]') { yield { type: 'done' }; return; }
+    const event = parseEvent(data);
+    if (event.error || ['error', 'response.failed', 'response.incomplete'].includes(event.type ?? '')) throw new Error('模型响应失败或不完整，请检查模型配置。');
+    if (mode === 'responses' && event.type === 'response.completed') {
+      if (event.response?.error || (event.response?.status && event.response.status !== 'completed')) throw new Error('模型响应失败或不完整，请检查模型配置。');
+      yield { type: 'done' }; return;
+    }
     const text = mode === 'responses'
-      ? (['response.output_text.delta', 'response.refusal.delta'].includes(event.type) ? event.delta : undefined)
+      ? (['response.output_text.delta', 'response.refusal.delta'].includes(event.type ?? '') ? event.delta : undefined)
       : event.choices?.[0]?.delta?.content;
     if (typeof text === 'string' && text) yield { type: 'delta', text };
   }

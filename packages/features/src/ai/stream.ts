@@ -3,6 +3,7 @@ export async function* readSSEData(body: ReadableStream<Uint8Array>): AsyncGener
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let trailingCR = '';
 
   const eventData = (event: string) => event.split(/\r?\n/)
     .filter(line => line.startsWith('data:'))
@@ -12,7 +13,12 @@ export async function* readSSEData(body: ReadableStream<Uint8Array>): AsyncGener
   try {
     while (true) {
       const { done, value } = await reader.read();
-      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+      let text = trailingCR + (done ? decoder.decode() : decoder.decode(value, { stream: true }));
+      // SSE permits CR, LF and CRLF. Keep a trailing CR until the next chunk
+      // so a split CRLF remains one line ending rather than an empty event.
+      trailingCR = !done && text.endsWith('\r') ? '\r' : '';
+      if (trailingCR) text = text.slice(0, -1);
+      buffer += text.replace(/\r\n|\r/g, '\n');
       if (buffer.length > 1_048_576) throw new Error('模型返回的数据格式异常。');
 
       let separator: RegExpExecArray | null;

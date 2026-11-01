@@ -131,12 +131,15 @@ pub async fn model_save(state: State<'_, AppState>, mut draft: ModelDraft) -> Re
 }
 #[tauri::command]
 pub async fn model_unlock(state: State<'_, AppState>, password: String) -> Result<Value> {
+    unlock_model(&state, password).await
+}
+async fn unlock_model(state: &AppState, password: String) -> Result<Value> {
     let secrets = state.secrets.clone();
     let password = zeroize::Zeroizing::new(password);
     tokio::task::spawn_blocking(move || secrets.unlock(&password))
         .await
         .map_err(|_| "解锁操作失败。")??;
-    public_settings(&state).await
+    public_settings(state).await
 }
 #[tauri::command]
 pub async fn model_lock(state: State<'_, AppState>) -> Result<Value> {
@@ -263,6 +266,7 @@ async fn run(
         .http
         .post(endpoint)
         .bearer_auth(&*key)
+        .header(reqwest::header::ACCEPT, "text/event-stream")
         .json(&body)
         .send()
         .await
@@ -338,9 +342,12 @@ mod tests {
                     }
                 }
             }
-            let body =
+            let body = if request.starts_with(b"POST /v1/responses ") {
+                "event: response.output_text.delta\r\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"紫微😀\"}\r\n\r\nevent: response.completed\r\ndata: {\"type\":\"response.completed\"}\r\n\r\n"
+            } else {
                 "data: {\"choices\":[{\"delta\":{\"content\":\"紫微😀\"}}]}\n\ndata: [DONE]\n\n"
-                    .as_bytes();
+            }
+            .as_bytes();
             let headers=format!("HTTP/1.1 {status} Fixture\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nLocation: http://127.0.0.1:1/forbidden\r\nConnection: close\r\n\r\n",body.len());
             let _ = socket.write_all(headers.as_bytes());
             thread::sleep(Duration::from_millis(delay));
@@ -427,12 +434,71 @@ mod tests {
             assert!(request
                 .to_lowercase()
                 .contains("authorization: bearer fixture-only-key"));
+            assert!(request.to_lowercase().contains("accept: text/event-stream"));
             assert!(request.starts_with(if mode == "chat" {
                 "POST /v1/chat/completions "
             } else {
                 "POST /v1/responses "
             }));
         }
+    }
+    #[tokio::test]
+    async fn unlock_after_restart_updates_settings_and_tests_saved_key() {
+        let started = std::time::Instant::now();
+        let dir = tempfile::tempdir().unwrap();
+        let (base_url, server) = mock(200, 0);
+        let first = state(dir.path());
+        first
+            .secrets
+            .save("fixture-only-key".into(), true, "fixture-password")
+            .unwrap();
+        first
+            .db
+            .set(
+                "model-config",
+                Some(&serde_json::to_string(&draft(base_url.clone(), "responses").config).unwrap()),
+            )
+            .await
+            .unwrap();
+        drop(first);
+        let saved_after = started.elapsed();
+
+        let restarted = state(dir.path());
+        let locked = public_settings(&restarted).await.unwrap();
+        assert_eq!(locked["hasVault"], true);
+        assert_eq!(locked["locked"], true);
+        assert_eq!(locked["configured"], false);
+        assert!(unlock_model(&restarted, "wrong-password".into())
+            .await
+            .is_err());
+        let unlocked = unlock_model(&restarted, "fixture-password".into())
+            .await
+            .unwrap();
+        eprintln!(
+            "vault regression: encrypted save {:?}; wrong-password check plus unlock {:?}",
+            saved_after,
+            started.elapsed() - saved_after
+        );
+        assert_eq!(unlocked["locked"], false);
+        assert_eq!(unlocked["configured"], true);
+        assert_eq!(unlocked["apiKey"], "");
+        let mut probe = draft(base_url, "responses");
+        probe.api_key.clear();
+        timed_run(
+            &restarted,
+            json!({"input":[{"role":"user","content":"OK"}]}),
+            Channel::new(|_| Ok(())),
+            Some(probe),
+            CancellationToken::new(),
+            Duration::from_secs(5),
+        )
+        .await
+        .unwrap();
+        let request = server.join().unwrap();
+        assert!(request.starts_with("POST /v1/responses "));
+        assert!(request
+            .to_lowercase()
+            .contains("authorization: bearer fixture-only-key"));
     }
     #[tokio::test]
     async fn transport_errors_redirect_cancellation_and_timeout() {

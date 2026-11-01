@@ -114,4 +114,6 @@ xattr -dr com.apple.quarantine "/Applications/紫微命盘.app"
 - 找不到资源先 `npm run assets`；不要复制第二份长期维护的古籍/排盘代码。
 - UI 初始化报本地数据库错误时保留原文件，见 [DATA_MIGRATION.md](DATA_MIGRATION.md)。
 - 模型锁定后需要解锁；空 Key 保存保留旧值，「清除密钥」需单独确认。仅本次使用的 Key 在应用退出后消失。
+- Android 调试 APK 也为 Argon2、scrypt 和 Salsa20 启用编译优化；加密算法、工作参数与已有 Stronghold 文件格式不变，避免调试包解锁耗时过长。解锁时显示等待状态，并暂停测试、保存等操作；成功或密码错误都在密码框旁提示。
+- Responses 使用 `Accept: text/event-stream` 请求流，解析支持 LF、CRLF、CR 及跨分片换行；异常 JSON 显示可读错误，不直接显示服务端原始数据。协议参考 [OpenAI Responses 流式响应](https://developers.openai.com/api/docs/guides/streaming-responses)。
 - 本机缺 Xcode、Android SDK 或 Windows MSVC 时用对应 GitHub runner 构建，并在报告中保留安装验证差距。

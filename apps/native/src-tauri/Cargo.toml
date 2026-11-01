@@ -39,3 +39,14 @@ tempfile = "3"
 [profile.release]
 lto = "thin"
 strip = true
+
+# Android test APKs use the dev profile. Optimize slow password derivation
+# without changing the algorithms, work factors or existing vault format.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.scrypt]
+opt-level = 3
+
+[profile.dev.package.salsa20]
+opt-level = 3

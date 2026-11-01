@@ -30,6 +30,40 @@ async function main() {
   const failure=consumeAI(upstreamEvents(failed.stream,'responses'),()=>{});
   failed.finish(new Error('fixture network failure'));
   await assert.rejects(failure,/fixture network failure/);
-  console.log('✓ 原生 AI 流：双协议正常结束先于 IPC 完成、迟到分片、取消和网络错误。');
+  for (const ending of ['\n', '\r\n', '\r']) {
+    const events = [
+      'event: response.created', 'data: {"type":"response.created"}', '',
+      ': keepalive', '',
+      'event: response.output_text.delta', 'data: {"type":"response.output_text.delta","delta":"紫微😀"}', '',
+      'event: response.completed', 'data: {"type":"response.completed","response":{"status":"completed"}}', '', '',
+    ].join(ending);
+    const bridge=createAIByteStream(async()=>{});
+    const result=consumeAI(upstreamEvents(bridge.stream,'responses'),text=>assert.equal(text,'紫微😀'));
+    // Includes boundaries inside Chinese characters, emoji and CRLF pairs.
+    for(const byte of new TextEncoder().encode(events))bridge.enqueue([byte]);
+    bridge.finish();
+    await result;
+  }
+  for (const invalid of ['not-json', 'null', '[]', '42', '{"type":']) {
+    let released=false;
+    const bridge=createAIByteStream(async()=>{released=true;});
+    const result=consumeAI(upstreamEvents(bridge.stream,'responses'),()=>{});
+    bridge.enqueue(bytes(`data: ${invalid}\n\n`));
+    await assert.rejects(result,error=>error instanceof Error && /模型返回的数据格式异常/.test(error.message) && !/JSON|SyntaxError|not-json/.test(error.message));
+    assert.ok(released,'invalid events release the native reader');
+  }
+  for(const terminal of [
+    {type:'response.failed',response:{error:{message:'fixture-only-secret'}}},
+    {type:'response.incomplete'},
+    {type:'error',message:'fixture-only-secret'},
+    {type:'response.completed',response:{status:'incomplete'}},
+    {type:'response.completed',response:{status:'completed',error:{message:'fixture-only-secret'}}},
+  ]){
+    const bridge=createAIByteStream(async()=>{});
+    const result=consumeAI(upstreamEvents(bridge.stream,'responses'),()=>{});
+    bridge.enqueue(bytes(`data: {"type":"response.output_text.delta","delta":"partial"}\n\ndata: ${JSON.stringify(terminal)}\n\n`));
+    await assert.rejects(result,error=>error instanceof Error && /失败或不完整/.test(error.message) && !error.message.includes('fixture-only-secret'));
+  }
+  console.log('✓ 原生 AI 流：双协议、三种 SSE 换行逐字节分片、异常 JSON、Responses 终止状态、迟到 IPC、取消和网络错误。');
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

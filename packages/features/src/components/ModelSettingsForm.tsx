@@ -27,15 +27,16 @@ export default function ModelSettingsForm() {
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [busy, setBusy] = useState<'save' | 'test' | null>(null);
+  const [busy, setBusy] = useState<'save' | 'test' | 'unlock' | 'lock' | 'clear' | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [vaultNotice, setVaultNotice] = useState<Notice | null>(null);
   const [remember, setRemember] = useState(false);
   const [password, setPassword] = useState('');
   const [tested, setTested] = useState(false);
   const [confirmClear,setConfirmClear]=useState(false);
-  const [clearing,setClearing]=useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const actionController = useRef<AbortController | null>(null);
+  const operationPending = useRef(false);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -74,7 +75,13 @@ export default function ModelSettingsForm() {
   }
 
   async function run(action: 'save' | 'test') {
-    if (busy || !formRef.current?.reportValidity()) return;
+    if (operationPending.current || !formRef.current?.reportValidity()) return;
+    if (services.platform === 'native' && settings?.locked && !draft.apiKey.trim()) {
+      setVaultNotice({ kind: 'error', message: '请先输入密钥库密码并点击解锁，再测试或保存配置。' });
+      document.getElementById('model-vault-password')?.focus();
+      return;
+    }
+    operationPending.current = true;
     setBusy(action);
     setNotice(null);
     if (action === 'test') setTested(false);
@@ -97,6 +104,48 @@ export default function ModelSettingsForm() {
     } catch (error) {
       if (!controller.signal.aborted) setNotice({ kind: 'error', message: error instanceof Error ? error.message : '请求失败，请稍后重试。' });
     } finally {
+      operationPending.current = false;
+      if (!controller.signal.aborted) setBusy(null);
+    }
+  }
+
+  async function changeVault(action: 'unlock' | 'lock' | 'clear') {
+    if (operationPending.current) return;
+    if (action === 'unlock' && (Array.from(password).length < 8 || new TextEncoder().encode(password).length > 1024)) {
+      setVaultNotice({ kind: 'error', message: '解锁密码至少需要 8 个字符，且不能过长。' });
+      document.getElementById('model-vault-password')?.focus();
+      return;
+    }
+    operationPending.current = true;
+    setBusy(action);
+    setNotice(null);
+    setVaultNotice(null);
+    setTested(false);
+    const showNotice = action === 'clear' ? setNotice : setVaultNotice;
+    const controller = new AbortController();
+    actionController.current = controller;
+    try {
+      const next = action === 'clear' ? await services.model.clear()
+        : action === 'unlock' ? await services.model.unlock!(password) : await services.model.lock!();
+      if (controller.signal.aborted) return;
+      if (action === 'unlock' && next.locked) throw new Error('密钥库仍未解锁，请检查密码后重试。');
+      setSettings(next);
+      setPassword('');
+      if (action === 'clear') {
+        setDraft(current => ({ ...current, apiKey: '' }));
+        setRemember(false);
+        setConfirmClear(false);
+      }
+      showNotice({ kind: 'success', message: action === 'unlock'
+        ? '密钥库已解锁，本次启动可使用已保存的密钥。'
+        : action === 'lock' ? '密钥库已锁定。' : '模型密钥已清除。' });
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        if (action === 'clear') setConfirmClear(false);
+        showNotice({ kind: 'error', message: error instanceof Error ? error.message : String(error) });
+      }
+    } finally {
+      operationPending.current = false;
       if (!controller.signal.aborted) setBusy(null);
     }
   }
@@ -109,7 +158,7 @@ export default function ModelSettingsForm() {
 
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-6">
-      <ConfirmDialog open={confirmClear} title="清除模型密钥？" busy={clearing} onCancel={()=>setConfirmClear(false)} onConfirm={()=>{setClearing(true);void services.model.clear().then(next=>{setSettings(next);setDraft(current=>({...current,apiKey:''}));setPassword('');setRemember(false);setConfirmClear(false);},error=>setNotice({kind:'error',message:String(error)})).finally(()=>setClearing(false));}}>清除后需重新填写 API Key。出生档案、主题和已有古籍不受影响。</ConfirmDialog>
+      <ConfirmDialog open={confirmClear} title="清除模型密钥？" busy={busy === 'clear'} onCancel={()=>setConfirmClear(false)} onConfirm={()=>void changeVault('clear')}>清除后需重新填写 API Key。出生档案、主题和已有古籍不受影响。</ConfirmDialog>
       <form ref={formRef} onSubmit={event => { event.preventDefault(); void run('save'); }} className={styles.card}>
         <div className="flex items-center gap-3 border-b p-5 sm:px-7 sm:py-6" style={{ borderColor: 'var(--bdr)' }}>
           <div className={styles.iconBox}><ConnectionIcon /></div>
@@ -119,12 +168,17 @@ export default function ModelSettingsForm() {
           </div>
           <span className={`${styles.badge} ml-auto shrink-0`}>{dirty ? '未保存' : settings.configured ? '已配置' : '待配置'}</span>
         </div>
-        {services.platform === 'native' && <div className="p-5 space-y-3" style={{ borderBottom: '1px solid var(--bdr)' }}>
+        {services.platform === 'native' && <fieldset disabled={busy !== null} className="min-w-0 p-5 space-y-3" style={{ borderBottom: '1px solid var(--bdr)' }} aria-busy={busy === 'unlock' || busy === 'lock'}>
           <p className="text-xs" role="status">{settings.locked ? '密钥库已锁定；请解锁后使用 AI。' : '可仅本次使用，或用解锁密码加密保存。'}</p>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />加密保存密钥</label>
-          {(remember || settings.hasVault) && <input type="password" className="input-base" value={password} onChange={e => setPassword(e.target.value)} placeholder="密钥库解锁密码（至少 8 个字符）" autoComplete="off" />}
-          {settings.hasVault && <button type="button" className={styles.secondaryButton} onClick={async () => { try { const next = settings.locked ? await services.model.unlock!(password) : await services.model.lock!(); setSettings(next); setPassword(''); setNotice(null); } catch(e) { setNotice({kind:'error',message:String(e)}); } }}>{settings.locked ? '解锁' : '锁定密钥库'}</button>}
-        </div>}
+          {(remember || settings.hasVault) && <input id="model-vault-password" type="password" className="input-base" value={password} onChange={e => { setPassword(e.target.value); setVaultNotice(null); }} placeholder="密钥库解锁密码（至少 8 个字符）" aria-label="密钥库解锁密码" autoComplete="off" autoCapitalize="none" spellCheck={false}
+            onKeyDown={event => { if (event.key === 'Enter' && settings.locked) { event.preventDefault(); void changeVault('unlock'); } }} />}
+          {settings.hasVault && <button type="button" className={styles.secondaryButton} onClick={() => void changeVault(settings.locked ? 'unlock' : 'lock')}>
+            {(busy === 'unlock' || busy === 'lock') && <span className={styles.spinner} aria-hidden="true" />}
+            {busy === 'unlock' ? '正在解锁…' : busy === 'lock' ? '正在锁定…' : settings.locked ? '解锁' : '锁定密钥库'}
+          </button>}
+          {vaultNotice && <p role={vaultNotice.kind === 'error' ? 'alert' : 'status'} className={`${styles.notice} ${vaultNotice.kind === 'error' ? styles.noticeError : styles.noticeSuccess}`}>{vaultNotice.message}</p>}
+        </fieldset>}
         <fieldset disabled={busy !== null} className="min-w-0 space-y-6 p-5 sm:p-7">
           <div>
             <label htmlFor="model-base-url" className={styles.label}>接口地址 <span className={styles.fieldAlias}>Base URL</span></label>
