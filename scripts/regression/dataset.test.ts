@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,readFile,writeFile,cp,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import {execFileSync} from 'node:child_process';
 import {readRecord,searchRecords,datasetStatus,clearDatasetCache,scanYear} from '../../server/dataset/reader.mjs';
 import {datasetBirth,datasetKey,datasetParagraphs,datasetReferences,chartFeatures,compareCharts,chartExercises,DATASET_VERSION} from '@ziwei/domain/ziwei/dataset';
 import {generateChart} from '@ziwei/domain/ziwei/algorithm';
@@ -9,7 +10,27 @@ import {LEARNING_CASES} from '@ziwei/domain/ziwei/learning-cases';
 import {enrichDataset} from '@ziwei/features/ai/dataset';
 import {interpretMessages,hemingMessages} from '@ziwei/features/ai/prompts';
 
+async function verifyPackagedChecksums(){
+ const temp=await mkdtemp(path.join(os.tmpdir(),'ziwei-checksums-'));
+ try{
+  await cp(path.resolve('assets/datasets/ziwei-v4.0-13d'),temp,{recursive:true});
+  const checksumFile=path.join(temp,'SHA256SUMS.txt');
+  const sums=(await readFile(checksumFile,'utf8')).replace(/\r\n/g,'\n');
+  const verify=()=>execFileSync(process.execPath,[path.resolve('scripts/dataset-verify.mjs'),temp],{encoding:'utf8',stdio:'pipe',timeout:30000});
+  for(const newline of ['\n','\r\n']){
+   await writeFile(checksumFile,sums.replace(/\n/g,newline));
+   assert.match(verify(),/77 个年份文件全部通过/);
+  }
+  await writeFile(checksumFile,sums.replace(/^[a-f0-9]{64}/,'0'.repeat(64)));
+  assert.throws(verify,/资料校验失败：year-1950/);
+  await writeFile(checksumFile,sums);
+  const file=path.join(temp,'year-1950.jsonl.zst');const bytes=await readFile(file);bytes[20]^=255;await writeFile(file,bytes);
+  assert.throws(verify,/资料校验失败：year-1950/);
+ }finally{await rm(temp,{recursive:true,force:true});}
+}
+
 async function main(){
+ await verifyPackagedChecksums();
  const repo={read:readRecord,search:searchRecords,status:datasetStatus,clearCache:async()=>clearDatasetCache()};
  assert.equal((await datasetStatus()).years,77);
  for(const key of ['1990-02-30-0-male','1991-02-29-0-male','2027-01-01-0-male','1990-01-01-12-male','../../etc/passwd']){assert.throws(()=>datasetBirth(key));await assert.rejects(readRecord(key));}

@@ -1,1 +1,2 @@
 assets/datasets/**/*.zst binary
+assets/datasets/**/SHA256SUMS.txt text eol=lf
