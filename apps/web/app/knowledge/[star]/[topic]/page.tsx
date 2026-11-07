@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 export const dynamicParams = false;
 export async function generateStaticParams() {
-  const routes = getAllKnowledgeRoutes();
+  const routes = ALL_STARS.flatMap(star=>ALL_TOPICS.map(topic=>({slug:STAR_TO_SLUG[star],topic})));
   // URL 用拼音 slug 替代中文，避开 Vercel/CDN 中文路由边界问题
   return routes.map(r => ({ star: r.slug, topic: r.topic }));
 }
@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: { params: Promise<{ star: str
   const star = SLUG_TO_STAR[slug];
   if (!star) return {};
   const data = getKnowledge(star, topic as TopicKey);
-  if (!data.exists) return {};
+  if (!data.exists) return {title:`${star} · 命盘资料与古籍`,description:STAR_BRIEF_SEO[star]};
 
   const title = `${star}入${data.palaceName}宫 · ${data.topicLabel} · GitHub开源档案详解`;
   const description = data.parsed.dingdiao
@@ -41,4 +41,4 @@ export async function generateMetadata({ params }: { params: Promise<{ star: str
 }
 
 import SharedPage from '@ziwei/features/pages/knowledge-detail';
-export default async function Page({ params }: { params: Promise<{ star: string; topic: string }> }) { const resolved = await params; if (!SLUG_TO_STAR[resolved.star] || !getKnowledge(SLUG_TO_STAR[resolved.star], resolved.topic as TopicKey).exists) notFound(); return <SharedPage params={resolved} />; }
+export default async function Page({ params }: { params: Promise<{ star: string; topic: string }> }) { const resolved = await params; if (!SLUG_TO_STAR[resolved.star] || !ALL_TOPICS.includes(resolved.topic as TopicKey)) notFound(); return <SharedPage params={resolved} />; }

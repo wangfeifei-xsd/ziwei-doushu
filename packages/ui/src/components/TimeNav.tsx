@@ -1,9 +1,13 @@
 'use client';
 import { motion } from 'framer-motion';
-import { STEMS, SI_HUA_TABLE } from '@ziwei/domain/ziwei/constants';
+import { STEMS } from '@ziwei/domain/ziwei/constants';
+import { buildStarSiHuaMap, getYearStemIndex } from '@ziwei/domain/ziwei/sihua';
+import type { AnalysisView } from '@ziwei/domain/ai/analysis';
 import type { ZiweiChart } from '@ziwei/domain/ziwei/types';
 
-export type TimeView = 'mingpan' | 'daxian' | 'liunian';
+export type TimeView = AnalysisView;
+export { getYearStemIndex };
+export const buildSiHuaOverlay = buildStarSiHuaMap;
 
 interface TimeNavProps {
   chart: ZiweiChart;
@@ -11,23 +15,6 @@ interface TimeNavProps {
   liunianYear: number;
   onViewChange: (view: TimeView) => void;
   onYearChange: (year: number) => void;
-}
-
-/** 由年份计算天干索引 (0-9) */
-export function getYearStemIndex(year: number): number {
-  return ((year - 4) % 10 + 10) % 10;
-}
-
-/** 根据天干索引返回四化映射：starName → SiHua */
-export function buildSiHuaOverlay(stemIndex: number): Record<string, string> {
-  const stars = SI_HUA_TABLE[stemIndex];
-  if (!stars) return {};
-  return {
-    [stars[0]]: '禄',
-    [stars[1]]: '权',
-    [stars[2]]: '科',
-    [stars[3]]: '忌',
-  };
 }
 
 const SIHUA_COLORS: Record<string, string> = {
@@ -119,6 +106,7 @@ export default function TimeNav({
           <div className="flex items-center gap-0.5">
             <button
               onClick={e => { e.stopPropagation(); onYearChange(liunianYear - 1); if (view !== 'liunian') onViewChange('liunian'); }}
+              disabled={liunianYear <= 1600}
               aria-label="上一年" className="text-[9px] w-4 h-4 flex items-center justify-center rounded"
               style={{ color: 'var(--t-faint)' }}
             >
@@ -133,6 +121,7 @@ export default function TimeNav({
             </span>
             <button
               onClick={e => { e.stopPropagation(); onYearChange(liunianYear + 1); if (view !== 'liunian') onViewChange('liunian'); }}
+              disabled={liunianYear >= 2200}
               aria-label="下一年" className="text-[9px] w-4 h-4 flex items-center justify-center rounded"
               style={{ color: 'var(--t-faint)' }}
             >
@@ -151,7 +140,7 @@ export default function TimeNav({
           className="flex items-center gap-2 mt-1.5 px-1 flex-wrap"
         >
           <span className="text-[9px]" style={{ color: 'var(--t-faint)' }}>
-            {view === 'daxian' ? '大限' : `${liunianYear}`}·{overlayInfo.stemName}年四化：
+            {view === 'daxian' ? `大限·${overlayInfo.stemName}宫干` : `${liunianYear}·${overlayInfo.stemName}年干`}四化：
           </span>
           {(['禄', '权', '科', '忌'] as const).map(sh => {
             const starName = Object.keys(overlayInfo.overlay).find(k => overlayInfo.overlay[k] === sh);

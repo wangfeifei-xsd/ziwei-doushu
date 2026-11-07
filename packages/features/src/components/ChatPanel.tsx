@@ -40,7 +40,7 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
-    const userMsg: Message = { role: 'user', content: text };
+    const userMsg: Message = { role: 'user', content: text.trim() };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
@@ -80,7 +80,7 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
             <div className="text-4xl mb-3" style={{ color: 'var(--t-gold)', opacity: 0.15 }}>✦</div>
             <p className="text-xs leading-relaxed" style={{ color: 'var(--t-faint)' }}>
               命盘已生成，可直接提问<br />
-              或从下方选择常见问题开始解读
+              或选择常见问题，确认后点击「解读」
             </p>
           </motion.div>
         )}
@@ -127,7 +127,7 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
             {PRESET_QUESTIONS.map((q, i) => (
               <button
                 key={i}
-                onClick={() => sendMessage(q)}
+                onClick={() => setInput(q)}
                 disabled={loading}
                 className="text-left text-[10px] rounded-lg px-2.5 py-2 transition-all line-clamp-2"
                 style={{
@@ -158,7 +158,12 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage(input)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && e.nativeEvent.keyCode !== 229) {
+                e.preventDefault();
+                void sendMessage(input);
+              }
+            }}
             placeholder="输入问题，如：我的感情运势如何？"
             disabled={loading}
             className="flex-1 rounded-lg px-3 py-2 text-xs focus:outline-none transition-colors"

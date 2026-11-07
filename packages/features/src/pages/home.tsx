@@ -47,6 +47,7 @@ export default function HomePage() {
             <span className="feature-arrow" aria-hidden="true">↗</span>
           </Link>)}
         </div>
+        <Link href="/learn" className="home-learn-link"><span>命盘学习</span><p>十组特色例盘，带着问题一起学看盘。</p><span aria-hidden="true">进入课堂 ↗</span></Link>
         <footer className="home-footer"><span>紫微为门 · 知行合一</span><div><Link href="/privacy">隐私政策</Link><span>·</span><Link href="/terms">服务条款</Link></div></footer>
       </div>
     </div>

@@ -273,7 +273,7 @@ Expand-Archive combined.zip
 
 ## 三、快速开始
 
-需要 **Node.js 22.12+**（版本见 `.node-version`）；完整网站档案功能需要 Java 17+ JDK。在仓库根目录安装依赖：
+需要 **Node.js 22.15+**（版本见 `.node-version`）；完整网站档案功能需要 Java 17+ JDK。在仓库根目录安装依赖：
 
 ```sh
 npm ci

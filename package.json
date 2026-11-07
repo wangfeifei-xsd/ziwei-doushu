@@ -7,27 +7,27 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.15.0"
   },
   "scripts": {
     "dev": "npm run dev:web",
     "build": "npm run build:web",
     "start": "npm run start:web",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
-    "test:ai": "tsx scripts/regression/ai-stream.test.ts",
+    "test:ai": "tsx scripts/regression/ai-stream.test.ts && tsx scripts/regression/ai-context.test.ts && tsx scripts/regression/learning-cases.test.ts",
     "test:model-config": "tsx scripts/regression/model-config.test.ts",
     "test:profiles": "tsx scripts/regression/profiles.test.ts",
-    "test": "npm run test:ai && npm run test:model-config && npm run test:profiles && tsx scripts/regression/pan-integrity.test.ts && tsx scripts/regression/dst-cn.test.ts && tsx scripts/regression/clock-adjust.test.ts && tsx scripts/regression/sizhu-lichun-boundary.test.ts && tsx scripts/regression/hongluan-tianxi.test.ts && tsx scripts/regression/famous-hour-consistency.test.ts && tsx scripts/regression/iztro-time-index-boundary.test.ts && tsx scripts/regression/solar-date-exists.test.ts && tsx scripts/regression/natal-dual-sihua-same-palace.test.ts && tsx scripts/regression/neutral-naming.test.ts && npm run test:shared && npm run check:boundaries",
+    "test": "npm run test:dataset && npm run test:ai && npm run test:model-config && npm run test:profiles && tsx scripts/regression/pan-integrity.test.ts && tsx scripts/regression/dst-cn.test.ts && tsx scripts/regression/clock-adjust.test.ts && tsx scripts/regression/sizhu-lichun-boundary.test.ts && tsx scripts/regression/hongluan-tianxi.test.ts && tsx scripts/regression/famous-hour-consistency.test.ts && tsx scripts/regression/iztro-time-index-boundary.test.ts && tsx scripts/regression/solar-date-exists.test.ts && tsx scripts/regression/natal-dual-sihua-same-palace.test.ts && tsx scripts/regression/neutral-naming.test.ts && npm run test:shared && npm run check:boundaries",
     "dev:web": "npm run dev -w @ziwei/web",
     "start:web": "npm run start -w @ziwei/web",
-    "build:web": "npm run assets && npm run build -w @ziwei/web && npm run package:web",
+    "build:web": "npm run dataset:verify && npm run assets && npm run build -w @ziwei/web && npm run package:web",
     "assets": "node scripts/sync-assets.mjs",
     "icons:generate": "npm run tauri -w @ziwei/native -- icon ../../assets/app-icon.manifest.json && node scripts/sync-native-icons.mjs --if-present",
     "dev:app": "npm run tauri -w @ziwei/native -- dev",
     "dev:app:web": "npm run assets && npm run dev -w @ziwei/native",
     "dev:android": "npm run tauri -w @ziwei/native -- android dev",
     "dev:ios": "npm run tauri -w @ziwei/native -- ios dev",
-    "build:app": "npm run assets && npm run build -w @ziwei/native",
+    "build:app": "npm run dataset:verify && npm run assets && npm run build -w @ziwei/native",
     "build:desktop": "npm run tauri -w @ziwei/native -- build",
     "build:android": "npm run tauri -w @ziwei/native -- android build",
     "build:ios": "npm run tauri -w @ziwei/native -- ios build",
@@ -45,7 +45,10 @@
     "app-web:up": "node scripts/service.mjs start app-web",
     "app-web:down": "node scripts/service.mjs stop app-web",
     "services:status": "node scripts/service.mjs status --all",
-    "services:down": "node scripts/service.mjs stop --all"
+    "services:down": "node scripts/service.mjs stop --all",
+    "dataset:verify": "node scripts/dataset-verify.mjs",
+    "dataset:tools": "tsx scripts/dataset-tools.ts",
+    "test:dataset": "tsx scripts/regression/dataset.test.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

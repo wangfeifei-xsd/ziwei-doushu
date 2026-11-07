@@ -21,7 +21,7 @@ function upstreamError(status: number): AIRequestError {
 
 export async function handleAIRequest(
   request: Request,
-  buildMessages: (body: unknown) => AIMessage[],
+  buildMessages: (body: unknown) => AIMessage[] | Promise<AIMessage[]>,
   options?: { config?: AIConfig; timeoutMs?: number },
 ): Promise<Response> {
   try {
@@ -38,7 +38,7 @@ export async function handleAIRequest(
     } catch {
       throw new AIRequestError('请求内容必须是有效的 JSON。');
     }
-    const messages = buildMessages(body);
+    const messages = await buildMessages(body);
     const config = options?.config ?? await getAIConfig();
     const { apiKey, model, mode } = config;
     const endpoint = getAIEndpoint(config);

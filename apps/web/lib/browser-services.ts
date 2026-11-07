@@ -16,6 +16,12 @@ async function download(name: string, blob: Blob) {
 export function browserServices(websiteURL: string): AppServices {
   return {
     platform: 'web', websiteURL,
+    dataset: {
+      read:async(key,signal)=>(await json(`/api/dataset?key=${encodeURIComponent(key)}`,{signal})).record,
+      search:(query,signal)=>json('/api/dataset',{...body(query,'POST'),signal}),
+      status:signal=>json('/api/dataset',{signal}),
+      clearCache:async()=>{await json('/api/dataset',{method:'DELETE'});},
+    },
     profiles: {
       list: async signal => (await json('/api/profiles', { signal })).profiles,
       get: async (id, signal) => { const response = await fetch(`/api/profiles/${id}`, { signal, cache: 'no-store' }); if (response.status === 404) return null; const data = await response.json(); if (!response.ok) throw new Error(data.error); return data.profile as BirthProfile; },

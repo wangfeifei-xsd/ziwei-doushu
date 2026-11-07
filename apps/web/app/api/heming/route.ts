@@ -1,9 +1,11 @@
 import { hemingMessages } from '@ziwei/features/ai/prompts';
 import { handleAIRequest } from '@/lib/ai/server';
+import { enrichDataset } from '@ziwei/features/ai/dataset';
+import { dataset } from '@/lib/dataset';
 
 export const runtime = 'nodejs';
 export const maxDuration = 180;
 
 export async function POST(request: Request) {
-  return handleAIRequest(request, hemingMessages);
+  return handleAIRequest(request, body=>enrichDataset(hemingMessages(body),body,'heming',dataset,request.signal));
 }

@@ -7,6 +7,7 @@ import BirthForm, { type BirthFormState } from '@ziwei/ui/components/BirthForm';
 import ChartBoard from '@ziwei/ui/components/ChartBoard';
 import InsightPanel from '@ziwei/features/components/InsightPanel';
 import { generateChart } from '@ziwei/domain/ziwei/algorithm';
+import { analysisClock, type AnalysisView, type SelectedSiHua } from '@ziwei/domain/ai/analysis';
 import type { BirthInfo, ZiweiChart, Palace } from '@ziwei/domain/ziwei/types';
 import { formToBirthInfo, formToSearchParams, searchParamsToForm, parseShareLink, publicShareLink } from '@ziwei/domain/ziwei/share';
 import { isProfileId, parseProfileForm } from '@ziwei/domain/ziwei/profiles';
@@ -30,6 +31,9 @@ function ChartContent() {
   const query = searchParams.toString();
   const [chart, setChart] = useState<ZiweiChart | null>(null);
   const [selectedPalace, setSelectedPalace] = useState<Palace | null>(null);
+  const [timeView, setTimeView] = useState<AnalysisView>('mingpan');
+  const [liunianYear, setLiunianYear] = useState(() => analysisClock().lunarYear);
+  const [selectedSiHua, setSelectedSiHua] = useState<SelectedSiHua | null>(null);
   const [loading, setLoading] = useState(Boolean(query));
   const [error, setError] = useState('');
   const [initialForm, setInitialForm] = useState<BirthFormState | undefined>();
@@ -41,6 +45,9 @@ function ChartContent() {
     setError('');
     setChart(null);
     setSelectedPalace(null);
+    setSelectedSiHua(null);
+    setTimeView('mingpan');
+    setLiunianYear(analysisClock().lunarYear);
     if (!query) { setLoading(false); return () => controller.abort(); }
     setLoading(true);
     const open = async () => {
@@ -113,8 +120,13 @@ function ChartContent() {
       </div>
       {initialForm && <ShareModal open={sharing} onClose={()=>setSharing(false)} shareUrl={publicShareLink(siteURL(),initialForm)} chart={chart} birth={{year:initialForm.year,month:initialForm.month,day:initialForm.day,hour:initialForm.unknownTime?'未知':initialForm.clockHour,minute:initialForm.clockMinute,gender:initialForm.gender,city:initialForm.city,unknownTime:initialForm.unknownTime}}/>}
       <div className="chart-layout">
-        <ChartBoard chart={chart} onPalaceSelect={setSelectedPalace} />
-        <InsightPanel key={JSON.stringify(chart.birthInfo)} chart={chart} selectedPalace={selectedPalace} />
+        <ChartBoard key={JSON.stringify(chart.birthInfo)} chart={chart} timeView={timeView} liunianYear={liunianYear}
+          onTimeViewChange={view => { setTimeView(view); setSelectedSiHua(null); }}
+          onLiunianYearChange={year => { setLiunianYear(year); setSelectedSiHua(null); }}
+          onPalaceSelect={palace => { setSelectedPalace(palace); setSelectedSiHua(null); }}
+          onSiHuaClick={(starName, siHua, view) => setSelectedSiHua({ starName, siHua, view })} />
+        <InsightPanel key={JSON.stringify(chart.birthInfo)} chart={chart} timeView={timeView} liunianYear={liunianYear}
+          selectedPalace={selectedPalace} selectedSiHua={selectedSiHua} />
       </div>
     </main>
   );

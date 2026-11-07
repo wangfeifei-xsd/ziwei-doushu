@@ -10,6 +10,8 @@ import { interpretMessages, hemingMessages } from '@ziwei/features/ai/prompts';
 import { requestBody, upstreamEvents, consumeAI } from '@ziwei/features/ai/client';
 import type { ModelSettings } from '@ziwei/domain/ai/config';
 import { createAIByteStream } from './ai-byte-stream';
+import { enrichDataset } from '@ziwei/features/ai/dataset';
+import type { DatasetRepository } from '@ziwei/domain/ziwei/dataset';
 
 async function call<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   try { return await invoke<T>(name, args); } catch(e) { throw new Error(typeof e === 'string' ? e : '原生操作失败，请重试。'); }
@@ -34,6 +36,17 @@ export async function createNativeServices(websiteURL: string) {
   });
   document.documentElement.dataset.theme = cache.get('ziwei-theme') === 'light' ? 'light' : 'dark';
   const active = new Set<string>();
+  async function readDataset<T>(args: Record<string,unknown>,signal?: AbortSignal): Promise<T> {
+    signal?.throwIfAborted();const requestId=crypto.randomUUID();await call('ai_begin',{requestId});
+    const abort=()=>{void call('ai_cancel',{requestId}).catch(()=>{});};signal?.addEventListener('abort',abort,{once:true});
+    try {signal?.throwIfAborted();const result=await call<T>('dataset_read',{...args,requestId});signal?.throwIfAborted();return result;}
+    finally {signal?.removeEventListener('abort',abort);await call('ai_cancel',{requestId}).catch(()=>{});}
+  }
+  const dataset: DatasetRepository={
+    read:(key,signal)=>readDataset({key},signal),search:(query,signal)=>readDataset({query},signal),
+    status:async signal=>{const status=await call<Awaited<ReturnType<DatasetRepository['status']>>>('dataset_status');signal?.throwIfAborted();return status;},
+    clearCache:()=>call('dataset_clear_cache'),
+  };
   async function* streamRaw(body: unknown, mode: 'chat' | 'responses', signal: AbortSignal, draft?: ModelDraft): AsyncGenerator<AIEvent> {
     signal.throwIfAborted();
     const requestId = crypto.randomUUID();
@@ -61,7 +74,7 @@ export async function createNativeServices(websiteURL: string) {
     if (!file) return 'cancelled'; await writeFile(file,bytes); return 'saved';
   }
   const services: AppServices = {
-    platform:'native',websiteURL,
+    platform:'native',websiteURL,dataset,
     profiles:{
       list: async signal => { const data=await call<Awaited<ReturnType<AppServices['profiles']['list']>>>('profile_list'); signal?.throwIfAborted(); return data; },
       get: async (id,signal) => { const data=await call<Awaited<ReturnType<AppServices['profiles']['get']>>>('profile_get',{id});signal?.throwIfAborted();return data; },
@@ -75,7 +88,8 @@ export async function createNativeServices(websiteURL: string) {
     },
     ai:{ async *stream(request,signal) {
       const config=await services.model.get();signal.throwIfAborted();
-      const messages=request.kind==='interpret'?interpretMessages(request.body):hemingMessages(request.body);
+      const base=request.kind==='interpret'?interpretMessages(request.body):hemingMessages(request.body);
+      const messages=await enrichDataset(base,request.body,request.kind,dataset,signal);
       yield* streamRaw(requestBody(config.mode,config.model,messages),config.mode,signal);
     } },
     model:{

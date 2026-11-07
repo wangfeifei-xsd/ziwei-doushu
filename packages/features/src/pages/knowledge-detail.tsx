@@ -25,13 +25,15 @@ import {
   SLUG_TO_STAR,
 } from '@ziwei/content/seo/knowledge';
 import { siteURL } from '@ziwei/runtime/site';
+import DatasetKnowledge from '../components/DatasetKnowledge';
 
 export default function KnowledgePage({ params }: { params: { star: string; topic: string } }) {
   const { star: slug, topic } = params;
   const star = SLUG_TO_STAR[slug];
   if (!star) return <NotFound />;
   const data = getKnowledge(star, topic as TopicKey);
-  if (!data.exists) return <NotFound />;
+  if (!ALL_TOPICS.includes(topic as TopicKey)) return <NotFound />;
+  if (!data.exists) return <DatasetKnowledge star={star} topic={topic as TopicKey}/>;
 
   // 同主星其他 topic
   const otherTopicsForStar = ALL_TOPICS.filter(t => t !== topic && getKnowledge(star, t).exists);

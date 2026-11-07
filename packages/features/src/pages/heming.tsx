@@ -9,6 +9,7 @@ import { generateChart as buildChart } from '@ziwei/domain/ziwei/algorithm';
 import type { BirthInfo, ZiweiChart } from '@ziwei/domain/ziwei/types';
 import { useTheme } from '@ziwei/ui/components/ThemeProvider';
 import { consumeAI } from '@ziwei/features/ai/client';
+import AiInlineText from '@ziwei/features/components/AiInlineText';
 import type { BirthProfile } from '@ziwei/domain/ziwei/profiles';
 
 function SavedProfileSelect({ side, profiles, selectedId, loading, onSelect }: {
@@ -73,8 +74,8 @@ function AiContent({ text, streaming }: { text: string; streaming?: boolean }) {
           <div key={i} style={{ fontSize: '13px', lineHeight: 1.75, color: 'var(--tx-2)' }}>
             {parts.map((part, j) =>
               j % 2 === 0
-                ? part
-                : <strong key={j} style={{ fontWeight: 500, color: 'var(--tx-0)' }}>{part}</strong>
+                ? <AiInlineText key={j} text={part} />
+                : <strong key={j} style={{ fontWeight: 500, color: 'var(--tx-0)' }}><AiInlineText text={part} /></strong>
             )}
           </div>
         );

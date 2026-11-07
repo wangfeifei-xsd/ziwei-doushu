@@ -12,6 +12,7 @@ await cp(input,output,{recursive:true,filter:source=>{const name=path.basename(s
 const app=path.join(output,'apps/web');
 await cp(path.join(root,'apps/web/.next/static'),path.join(app,'.next/static'),{recursive:true});
 await cp(path.join(root,'assets/public'),path.join(app,'public'),{recursive:true});
+await cp(path.join(root,'assets/datasets'),path.join(output,'assets/datasets'),{recursive:true});
 for(const dir of ['vendor/h2','server/h2'])await cp(path.join(root,'apps/web',dir),path.join(app,dir),{recursive:true});
 await writeFile(path.join(output,'start.cjs'),`const path=require('node:path');
 const root=__dirname;
@@ -20,10 +21,11 @@ process.env.ZIWEI_REPO_ROOT=root;
 process.env.ZIWEI_WEB_ROOT=path.join(root,'apps','web');
 process.env.H2_DATA_DIR=path.resolve(process.env.H2_DATA_DIR||path.join(root,'data'));
 process.env.AI_CONFIG_DIR=path.resolve(process.env.AI_CONFIG_DIR||process.env.H2_DATA_DIR);
+process.env.ZIWEI_DATASET_DIR=process.env.ZIWEI_DATASET_DIR||path.join(root,'assets','datasets','ziwei-v4.0-13d');
 process.env.HOSTNAME=process.env.HOSTNAME||'127.0.0.1';
 process.chdir(process.env.ZIWEI_WEB_ROOT);
 require(path.join(process.env.ZIWEI_WEB_ROOT,'server.js'));
 `);
-await writeFile(path.join(output,'README.md'),'# 紫微命盘 Web 独立包\n\n需要 Node.js 22.12+ 和 Java 17+ JDK，无需 npm install。\n\n设置 H2_DATA_DIR、AI_CONFIG_DIR 为持久化目录；可设置 PORT、HOSTNAME、OPENAI_*。执行 `node start.cjs`。默认监听 127.0.0.1:3000。部署到服务器时显式设置 HOSTNAME=0.0.0.0。包内不含个人数据库、.env 或模型密钥。停止时先发送 SIGTERM，并等待 Java 桥接退出。\n');
+await writeFile(path.join(output,'README.md'),'# 紫微命盘 Web 独立包\n\n需要 Node.js 22.15+ 和 Java 17+ JDK，无需 npm install。\n\n设置 H2_DATA_DIR、AI_CONFIG_DIR 为持久化目录；可设置 PORT、HOSTNAME、OPENAI_*。执行 `node start.cjs`。默认监听 127.0.0.1:3000。部署到服务器时显式设置 HOSTNAME=0.0.0.0。包内不含个人数据库、.env 或模型密钥。停止时先发送 SIGTERM，并等待 Java 桥接退出。\n');
 async function audit(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const name=entry.name;if(skip.has(name)||name.startsWith('.env.')||/\.(mv|lock|trace)\.db$/.test(name))throw new Error(`Web 包混入私人文件：${name}`);if(entry.isDirectory())await audit(path.join(dir,name));}}
 await audit(output);console.log(`已生成 Web 独立包：${output}`);

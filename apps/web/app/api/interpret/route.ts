@@ -1,9 +1,11 @@
 import { interpretMessages } from '@ziwei/features/ai/prompts';
 import { handleAIRequest } from '@/lib/ai/server';
+import { enrichDataset } from '@ziwei/features/ai/dataset';
+import { dataset } from '@/lib/dataset';
 
 export const runtime = 'nodejs';
 export const maxDuration = 180;
 
 export async function POST(request: Request) {
-  return handleAIRequest(request, interpretMessages);
+  return handleAIRequest(request, body=>enrichDataset(interpretMessages(body),body,'interpret',dataset,request.signal));
 }

@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { analysisClock } from '@ziwei/domain/ai/analysis';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ZiweiChart, Palace, Star } from '@ziwei/domain/ziwei/types';
 import { BRANCHES, STEMS } from '@ziwei/domain/ziwei/constants';
@@ -10,8 +11,12 @@ import TimeNav, { type TimeView, getYearStemIndex, buildSiHuaOverlay } from '@zi
 interface ChartBoardProps {
   chart: ZiweiChart;
   onStarSelect?: (star: Star, palace: Palace) => void;
-  onPalaceSelect?: (palace: Palace) => void;
+  onPalaceSelect?: (palace: Palace | null) => void;
   onSiHuaClick?: (starName: string, siHua: string, view: TimeView) => void;
+  timeView?: TimeView;
+  liunianYear?: number;
+  onTimeViewChange?: (view: TimeView) => void;
+  onLiunianYearChange?: (year: number) => void;
 }
 
 const BRANCH_GRID_POS: Record<number, [number, number]> = {
@@ -53,10 +58,13 @@ function getSanFangSiZheng(branch: number): [number, number, number, number] {
 
 const ANIMATION_ORDER = [5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4];
 
-export default function ChartBoard({ chart, onStarSelect, onPalaceSelect, onSiHuaClick }: ChartBoardProps) {
+export default function ChartBoard({ chart, onStarSelect, onPalaceSelect, onSiHuaClick,
+  timeView: controlledView, liunianYear: controlledYear, onTimeViewChange, onLiunianYearChange }: ChartBoardProps) {
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
-  const [timeView, setTimeView] = useState<TimeView>('mingpan');
-  const [liunianYear, setLiunianYear] = useState<number>(new Date().getFullYear());
+  const [localView, setLocalView] = useState<TimeView>('mingpan');
+  const [localYear, setLocalYear] = useState(() => analysisClock().lunarYear);
+  const timeView = controlledView ?? localView;
+  const liunianYear = controlledYear ?? localYear;
 
   const palaceMap: Record<number, Palace> = {};
   chart.palaces.forEach(p => { palaceMap[p.branch] = p; });
@@ -81,7 +89,7 @@ export default function ChartBoard({ chart, onStarSelect, onPalaceSelect, onSiHu
     if (!isDeselecting) {
       const palace = palaceMap[branch];
       if (palace) onPalaceSelect?.(palace);
-    }
+    } else onPalaceSelect?.(null);
   };
 
   // 三方四正
@@ -96,8 +104,8 @@ export default function ChartBoard({ chart, onStarSelect, onPalaceSelect, onSiHu
         chart={chart}
         view={timeView}
         liunianYear={liunianYear}
-        onViewChange={setTimeView}
-        onYearChange={setLiunianYear}
+        onViewChange={onTimeViewChange ?? setLocalView}
+        onYearChange={onLiunianYearChange ?? setLocalYear}
       />
 
       {/* 4x4 命盘网格（含 SVG 叠加层） */}

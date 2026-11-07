@@ -1,6 +1,7 @@
 mod ai;
 mod db;
 mod secrets;
+mod dataset;
 use db::{Database, ImportRecord, ImportSummary, Profile, Result};
 use secrets::SecretStore;
 use std::collections::{BTreeMap, HashMap};
@@ -130,6 +131,7 @@ async fn profile_import(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(dataset::DatasetState::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -150,6 +152,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             platform_info,
+            dataset::dataset_read,
+            dataset::dataset_status,
+            dataset::dataset_clear_cache,
             system_navigation,
             share_file,
             bootstrap,

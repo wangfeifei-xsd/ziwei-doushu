@@ -4,6 +4,7 @@ import type { BirthFormState } from '@ziwei/domain/birth';
 import type { BirthProfile } from '@ziwei/domain/ziwei/profiles';
 import type { AIConfig, ModelSettings } from '@ziwei/domain/ai/config';
 import type { ProfileExportV1, ImportSummary } from '@ziwei/domain/profiles-transfer';
+import type { DatasetRepository } from '@ziwei/domain/ziwei/dataset';
 
 export interface ProfileRepository {
   list(signal?: AbortSignal): Promise<BirthProfile[]>;
@@ -19,6 +20,7 @@ export interface AppServices {
   platform: 'web' | 'native' | 'preview';
   websiteURL: string;
   profiles: ProfileRepository;
+  dataset?: DatasetRepository;
   transfer?: { exportData(): Promise<ProfileExportV1>; importData(data: ProfileExportV1): Promise<ImportSummary> };
   ai: { stream(request: { kind: 'interpret' | 'heming'; body: unknown }, signal: AbortSignal): AsyncIterable<AIEvent> };
   model: {

@@ -31,11 +31,13 @@ const SiHuaBadge = ({
   overlay,
   label,
   onClick,
+  starName,
 }: {
   siHua: string;
   overlay?: boolean;
   label?: string;
   onClick?: (e: React.MouseEvent) => void;
+  starName?: string;
 }) => {
   return (
     <span
@@ -46,6 +48,12 @@ const SiHuaBadge = ({
         onClick && 'cursor-pointer hover:opacity-100',
       )}
       onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? `${label === '年' ? '流年' : '大限'}${starName ?? ''}化${siHua}` : undefined}
+      onKeyDown={onClick ? event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); event.currentTarget.click(); }
+      } : undefined}
     >
       {overlay && label && <span className="mr-px opacity-70">{label}</span>}
       {siHua}
@@ -153,6 +161,7 @@ export default function PalaceCell({
                   siHua={overlaySiHua}
                   overlay
                   label={overlayLabel}
+                  starName={star.name}
                   onClick={e => {
                     e.stopPropagation();
                     onSiHuaClick?.(star.name, overlaySiHua);
@@ -178,6 +187,7 @@ export default function PalaceCell({
                     siHua={overlaySiHua}
                     overlay
                     label={overlayLabel}
+                    starName={s.name}
                     onClick={e => {
                       e.stopPropagation();
                       onSiHuaClick?.(s.name, overlaySiHua);

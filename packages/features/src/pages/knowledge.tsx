@@ -94,7 +94,7 @@ export default function KnowledgeHomePage() {
               <div className="flex flex-wrap gap-2">
                 {ALL_TOPICS.map(t => {
                   const k = getKnowledge(star, t);
-                  if (!k.exists) return null;
+
                   return (
                     <Link
                       key={t}
