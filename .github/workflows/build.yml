@@ -277,7 +277,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: brew install xcodegen
       - run: node scripts/mobile-project.mjs ios
-      - name: Build unsigned simulator app
+      - name: Build and verify simulator app
         run: |
           if [[ $(uname -m) == arm64 ]]; then TARGET=aarch64-sim; else TARGET=x86_64; fi
           npm run tauri -w @ziwei/native -- ios build --ci --target "$TARGET" --no-sign --archive-only
@@ -302,9 +302,9 @@ jobs:
         env:
           BUILD_PLATFORM: ios
           BUILD_ARCH: simulator-host-and-optional-arm64-device
-          BUILD_SIGNING: ${{ env.SIGN_BUILD == 'true' && 'simulator-unsigned-and-device-distribution' || 'simulator-only-unsigned' }}
+          BUILD_SIGNING: ${{ env.SIGN_BUILD == 'true' && 'simulator-adhoc-and-device-distribution' || 'simulator-only-adhoc' }}
           BUILD_COMMAND: tauri ios build --ci
-          BUILD_VALIDATION: Simulator app compiled on Xcode; IPA only when production signing explicitly requested
+          BUILD_VALIDATION: Simulator resource signatures verified; launch and process smoke passed; IPA only when production signing explicitly requested
         run: node scripts/build-manifest.mjs dist/artifacts
       - uses: actions/upload-artifact@v4
         with:

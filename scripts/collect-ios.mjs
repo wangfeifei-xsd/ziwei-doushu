@@ -9,6 +9,10 @@ if(mode==='simulator'){
  const executable=execFileSync('/usr/libexec/PlistBuddy',['-c','Print :CFBundleExecutable',plist],{encoding:'utf8'}).trim();
  const display=execFileSync('/usr/libexec/PlistBuddy',['-c','Print :CFBundleDisplayName',plist],{encoding:'utf8'}).trim();
  if(!/^[\x20-\x7e]+$/.test(executable)||display!=='紫微命盘')throw new Error('iOS 需要 ASCII 可执行文件名及中文显示名；请检查平台配置合并。');
+ // --no-sign leaves only a linker signature on ARM64. Seal the simulator
+ // bundle so SpringBoard can validate its launch storyboard and resources.
+ execFileSync('codesign',['--force','--sign','-','--timestamp=none',app],{stdio:'inherit'});
+ execFileSync('codesign',['--verify','--deep','--strict','--verbose=2',app],{stdio:'inherit'});
  execFileSync('tar',['-czf',path.join(output,'ziwei-ios-simulator.app.tar.gz'),'-C',path.dirname(app),path.basename(app)]);
  await mkdir('.runtime',{recursive:true});await import('node:fs/promises').then(fs=>fs.writeFile('.runtime/ios-simulator-app.txt',app));
 }else if(mode==='device'){

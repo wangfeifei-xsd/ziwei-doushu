@@ -12,7 +12,7 @@ Build 的 `verify` 调用可复用 CI：Ubuntu 做全 workspace 类型/边界、
 - Windows 2025 → x64 MSVC NSIS `.exe`。
 - macOS 15 → Apple Silicon `.app`、`.dmg`，完整 ad-hoc 签名并挂载 DMG 校验实际应用；正式签名模式要求 Developer ID 与公证。
 - Ubuntu 24.04 → arm64 Android debug APK，全部原生库 16 KiB 页与 ZIP 对齐检查，以及最终 APK 桌面启动入口与图标校验；正式签名时增加 APK/AAB。
-- macOS 15 → 按 runner 架构选择 iOS 模拟器 `.app`，安装启动并截图；正式签名时增加真机 IPA。
+- macOS 15 → 按 runner 架构选择 iOS 模拟器 `.app`，补齐本地 ad-hoc 资源签名并严格校验，安装启动并截图；正式签名时增加真机 IPA。
 
 desktop matrix 设置 `fail-fast: false`；平台失败不阻断其他独立平台完成。总汇总 job 会在任何必需目标失败/取消时报失败，不能把部分成功描述为四端完成。手动选择一个平台时仍先执行完整公共检查。
 
@@ -27,7 +27,7 @@ shasum -a 256 -c SHA256SUMS
 # Linux 也可用 sha256sum -c SHA256SUMS
 ```
 
-Web 解开 standalone tar 后，在支持 Node 22.12+ / Java 17+ JDK 的主机运行 `node start.cjs`。Vite 包用于浏览器样式查看，不能当作原生安装包。模拟器 tar 仅安装到匹配架构的 iOS simulator；Android debug 包/未签名桌面包仅作为测试产物。
+Web 解开 standalone tar 后，在支持 Node 22.15+ / Java 17+ JDK 的主机运行 `node start.cjs`。Vite 包用于浏览器样式查看，不能当作原生安装包。模拟器 tar 使用无需证书的 ad-hoc 资源签名，仅安装到匹配架构的 iOS simulator；Android debug 包/未签名桌面包仅作为测试产物。
 
 ## 仓库配置
 
