@@ -11,28 +11,33 @@ except subprocess.TimeoutExpired:
     raise SystemExit(124)
 PY
 }
-DEVICE=$(bounded 45 xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(v["udid"] for devices in d["devices"].values() for v in devices if "iPhone" in v["name"]))')
+read -r SIM_RUNTIME SIM_TYPE < <(bounded 45 xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(runtime+" "+v["deviceTypeIdentifier"] for runtime,devices in d["devices"].items() for v in devices if "iPhone" in v["name"]))')
+# Use an owned device rather than the runner image's pre-created simulator.
+DEVICE=$(bounded 45 xcrun simctl create "Ziwei CI ${GITHUB_RUN_ID:-local}" "$SIM_TYPE" "$SIM_RUNTIME")
 DIAGNOSTICS="$PWD/.runtime/ios-diagnostics"
 mkdir -p "$DIAGNOSTICS"
 STARTED_AT=$(date +%s)
+APP_INSTALLED=false
 finish() {
   local result=$?
   trap - EXIT
   set +e
   if [[ $result != 0 ]]; then
-    for file in "$DIAGNOSTICS/stdout.log" "$DIAGNOSTICS/stderr.log"; do
+    for file in "$DIAGNOSTICS/readiness.log" "$DIAGNOSTICS/stdout.log" "$DIAGNOSTICS/stderr.log"; do
       if [[ -f "$file" ]]; then tail -100 "$file"; fi
     done
-    bounded 30 xcrun simctl spawn "$DEVICE" log show --last 5m --style compact --predicate 'process == "Ziwei" OR process == "紫微命盘" OR process == "ziwei-native" OR eventMessage CONTAINS "com.ziwei.chart"' > "$DIAGNOSTICS/system.log" 2>&1
+    bounded 30 xcrun simctl spawn "$DEVICE" log show --last 5m --style compact --predicate 'process == "Ziwei" OR process == "紫微命盘" OR process == "ziwei-native" OR process == "SpringBoard" OR process == "CoreSimulatorBridge" OR eventMessage CONTAINS "com.ziwei.chart"' > "$DIAGNOSTICS/system.log" 2>&1
     # Reproduce an early native crash under LLDB, including faults before Rust
     # can install its panic hook or the WebView can produce console output.
-    bounded 15 xcrun simctl terminate "$DEVICE" com.ziwei.chart >/dev/null 2>&1
-    bounded 30 xcrun simctl launch --wait-for-debugger "$DEVICE" com.ziwei.chart > "$DIAGNOSTICS/debug-launch.log" 2>&1
-    local debug_pid
-    debug_pid=$(awk '/^com\.ziwei\.chart:/ {print $NF}' "$DIAGNOSTICS/debug-launch.log")
-    if [[ "$debug_pid" =~ ^[0-9]+$ ]]; then
-      bounded 90 xcrun lldb --batch -p "$debug_pid" -o continue -k 'thread backtrace all' -k 'register read' > "$DIAGNOSTICS/backtrace.log" 2>&1
-      tail -120 "$DIAGNOSTICS/backtrace.log"
+    if [[ "$APP_INSTALLED" == true ]]; then
+      bounded 15 xcrun simctl terminate "$DEVICE" com.ziwei.chart >/dev/null 2>&1
+      bounded 30 xcrun simctl launch --wait-for-debugger "$DEVICE" com.ziwei.chart > "$DIAGNOSTICS/debug-launch.log" 2>&1
+      local debug_pid
+      debug_pid=$(awk '/^com\.ziwei\.chart:/ {print $NF}' "$DIAGNOSTICS/debug-launch.log")
+      if [[ "$debug_pid" =~ ^[0-9]+$ ]]; then
+        bounded 90 xcrun lldb --batch -p "$debug_pid" -o continue -k 'thread backtrace all' -k 'register read' > "$DIAGNOSTICS/backtrace.log" 2>&1
+        tail -120 "$DIAGNOSTICS/backtrace.log"
+      fi
     fi
     python3 - "$DIAGNOSTICS" "$DEVICE" "$STARTED_AT" <<'PY'
 import pathlib, shutil, sys
@@ -50,15 +55,30 @@ PY
   fi
   bounded 20 xcrun simctl terminate "$DEVICE" com.ziwei.chart >/dev/null 2>&1
   bounded 30 xcrun simctl shutdown "$DEVICE" >/dev/null 2>&1
+  bounded 30 xcrun simctl delete "$DEVICE" >/dev/null 2>&1
   exit "$result"
 }
 trap finish EXIT
 echo 'iOS smoke: boot simulator'
-bounded 45 xcrun simctl boot "$DEVICE" || true
+bounded 45 xcrun simctl boot "$DEVICE"
+bounded 30 open -a Simulator --args -CurrentDeviceUDID "$DEVICE"
 bounded 240 xcrun simctl bootstatus "$DEVICE" -b
+# bootstatus can finish while SpringBoard is still unresponsive on a cold
+# runner. Probe it with an Apple app before installing or testing our app.
+echo 'iOS smoke: verify simulator UI readiness'
+if ! bounded 60 xcrun simctl launch "$DEVICE" com.apple.Preferences > "$DIAGNOSTICS/readiness.log" 2>&1; then
+  cat "$DIAGNOSTICS/readiness.log"
+  echo 'iOS smoke: restart unresponsive simulator once'
+  bounded 45 xcrun simctl shutdown "$DEVICE"
+  bounded 45 xcrun simctl boot "$DEVICE"
+  bounded 240 xcrun simctl bootstatus "$DEVICE" -b
+  bounded 60 xcrun simctl launch "$DEVICE" com.apple.Preferences > "$DIAGNOSTICS/readiness.log" 2>&1
+fi
+bounded 20 xcrun simctl terminate "$DEVICE" com.apple.Preferences >/dev/null 2>&1 || true
 APP=$(cat .runtime/ios-simulator-app.txt)
 echo 'iOS smoke: install app'
 bounded 180 xcrun simctl install "$DEVICE" "$APP"
+APP_INSTALLED=true
 echo 'iOS smoke: launch app'
 SIMCTL_CHILD_RUST_BACKTRACE=full SIMCTL_CHILD_RUST_LOG=info bounded 90 xcrun simctl launch --stdout="$DIAGNOSTICS/stdout.log" --stderr="$DIAGNOSTICS/stderr.log" "$DEVICE" com.ziwei.chart > "$DIAGNOSTICS/launch.log"
 cat "$DIAGNOSTICS/launch.log"
