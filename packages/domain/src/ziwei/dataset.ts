@@ -26,10 +26,6 @@ export function datasetBirth(key: string): BirthInfo {
   return {year,month,day,hour,gender:m[5] as BirthInfo['gender']};
 }
 export function recordBirth(r: DatasetRecord): BirthInfo { return datasetBirth(r.k); }
-export function datasetPath(key: string, topic: TopicKey = 'overview', paragraph?: number) {
-  datasetBirth(key);
-  return `/dataset?key=${encodeURIComponent(key)}&topic=${topic}${paragraph===undefined?'':`#p-${topic}-${paragraph}`}`;
-}
 export function paragraphFlags(text: string): string[] {
   const flags: string[] = [];
   if (/(?:19|20)\d{2}年?|当前|今年|明年|大限|流年|流月|流日|流时|\d+[–—-]\d+岁/.test(text)) flags.push('时间快照');
@@ -38,7 +34,7 @@ export function paragraphFlags(text: string): string[] {
   return flags;
 }
 export function datasetParagraphs(record: DatasetRecord, topic: TopicKey) {
-  return record.c[topic].split(/\n\s*\n/).map((text,index)=>({ id:`${record.k}/${topic}/${index}`, index, text:text.trim(), flags:paragraphFlags(text), path:datasetPath(record.k,topic,index) })).filter(p=>p.text);
+  return record.c[topic].split(/\n\s*\n/).map((text,index)=>({ id:`${record.k}/${topic}/${index}`, index, text:text.trim(), flags:paragraphFlags(text) })).filter(p=>p.text);
 }
 export function datasetReferences(record: DatasetRecord, question: string, chart: ZiweiChart, topic?: string, palaceBranch?: number, budget=3600) {
   const hints: Partial<Record<TopicKey, RegExp>> = {career:/事业|工作|职业|官禄/,wealth:/钱|财|收入/,love:/感情|夫妻|婚|恋/,move:/迁移|外出|城市|搬家/,health:/健康|疾厄/,family:/兄弟|合伙/,children:/子女|孩子/,friends:/人际|朋友|贵人/,home:/房|田宅/,spirit:/福德|精神/,parents:/父母|长辈/,personality:/性格|脾气/};

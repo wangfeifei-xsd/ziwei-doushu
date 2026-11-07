@@ -315,7 +315,7 @@ input, select, textarea { accent-color: var(--ac); }
   .insight-panel { min-height: 520px; max-height: 800px; }
   #birth-profiles > .grid { grid-template-columns: minmax(0,1fr); }
 }
-@media (max-width: 700px) {
+@media (max-width: 800px) {
   .site-header-inner { min-height: 104px; padding: 12px 18px 0; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
   .site-brand > svg { width: 29px; height: 29px; }
   .site-brand > span:first-of-type { font-size: 21px; }
@@ -327,6 +327,8 @@ input, select, textarea { accent-color: var(--ac); }
   .site-nav { order: 3; flex: 1 0 100%; gap: 24px; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; min-height: 42px; }
   .site-nav::-webkit-scrollbar { display: none; }
   .site-nav a { font-size: 12px; padding-bottom: 4px; }
+}
+@media (max-width: 700px) {
   .home-hero-inner { display: flex; flex-direction: column; gap: 10px; padding: 44px 24px 32px; }
   .hero-copy { width: 100%; text-align: center; }
   .eyebrow { justify-content: center; font-size: 10px; margin-bottom: 20px; }

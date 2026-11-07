@@ -1,0 +1,13 @@
+.knowledge-detail { max-width: 1160px; margin: auto; padding: 36px 24px 70px; color: var(--tx-0); line-height: 1.85; }
+.knowledge-detail h1 { font-size: 28px; margin: 6px 0 14px; }
+.knowledge-detail h2 { font-size: 21px; margin: 24px 0 12px; }
+.knowledge-detail p { margin: 10px 0; }
+.knowledge-detail a { color: var(--ac); text-decoration: underline; text-underline-offset: 3px; }
+.knowledge-detail-note { color: var(--tx-3); font-size: 13px; }
+.knowledge-detail details { border-bottom: 1px solid var(--bdr); padding: 8px 0; }
+.knowledge-detail summary { cursor: pointer; padding: 8px 0; }
+.knowledge-detail [role=alert] { color: var(--ac); border: 1px solid var(--bdr); padding: 10px; }
+@media (max-width: 600px) {
+  .knowledge-detail { padding: 24px 16px 48px; }
+  .knowledge-detail h1 { font-size: 24px; }
+}

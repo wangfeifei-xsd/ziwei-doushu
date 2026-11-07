@@ -61,7 +61,7 @@ async function main(){
       // Keep an entire structural teaching group in one split. Exact paragraph duplicates are emitted only once across the entire run.
       const group=[major,...features.patterns.slice().sort()].join('|'),bucket=parseInt(hash(group).slice(0,8),16)%10;const split=bucket===0?'test':bucket===1?'validation':'train';
       for(const topic of DATASET_TOPICS){for(const p of datasetParagraphs(r,topic)){if(p.flags.length||p.text.length<40||p.text.length>1600)continue;const id=hash(p.text);if(seen.has(id))continue;seen.add(id);splitCounts[split]++;
-       await line(`${split}.jsonl`,{id,group:hash(group),requiresHumanReview:true,instruction:`请按当前盘面条件解释${topic}，区分事实与传统解读。`,input:features,output:p.text,source:{birth:r.k,topic,paragraph:p.index,version:DATASET_VERSION,path:p.path}});
+       await line(`${split}.jsonl`,{id,group:hash(group),requiresHumanReview:true,instruction:`请按当前盘面条件解释${topic}，区分事实与传统解读。`,input:features,output:p.text,source:{birth:r.k,topic,paragraph:p.index,version:DATASET_VERSION,id:p.id,url:DATASET_SOURCE}});
       }}
      }
     }else if(command==='dedupe'){

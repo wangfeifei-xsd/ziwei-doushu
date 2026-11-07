@@ -8,7 +8,6 @@ import { BRANCHES, SHICHEN } from '@ziwei/domain/ziwei/constants';
 import { analysisClock, type AnalysisView, type SelectedSiHua } from '@ziwei/domain/ai/analysis';
 import type { Palace } from '@ziwei/domain/ziwei/types';
 import LearningChatPanel from '../components/LearningChatPanel';
-import {datasetKey,datasetPath} from '@ziwei/domain/ziwei/dataset';
 
 function LearningSession({ lesson, index, onSelect }: { lesson: LearningCase; index: number; onSelect: (id: string) => void }) {
   const [chart] = useState(() => generateChart({ ...lesson.birth }));
@@ -36,7 +35,6 @@ function LearningSession({ lesson, index, onSelect }: { lesson: LearningCase; in
         onPalaceSelect={next => { setPalace(next); setSiHua(null); }}
         onSiHuaClick={(starName, value, source) => { setSiHua({ starName, siHua: value as SelectedSiHua['siHua'], view: source }); }} />
       <div className="learn-chart-note"><span>命宫在{BRANCHES[chart.mingGongBranch]} · 身宫在{BRANCHES[chart.shenGongBranch]} · {chart.wuxingJuName}</span>
-        <p><Link href={datasetPath(datasetKey(chart.birthInfo))}>阅读本盘十三专题资料 · 对照与练习 →</Link></p>
         <p>教学合成生辰，按所示公历排盘日与时辰起盘，未作真太阳时校正；子时日期已按排盘日表示。</p>
       </div>
     </section>

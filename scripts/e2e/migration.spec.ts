@@ -37,6 +37,6 @@ test('全部古籍章节、检索、主题切换、分享与返回',async({page}
  const current=await page.locator('html').getAttribute('data-theme');await page.getByRole('button',{name:current==='dark'?'切换亮色主题':'切换暗色主题'}).click();await page.reload();await expect(page.locator('html')).toHaveAttribute('data-theme',current==='dark'?'light':'dark');
  await page.goto(url('/chart',native));await page.getByText('从分享链接起盘',{exact:true}).click();await page.getByLabel('粘贴命盘分享链接').fill(`https://ziwei.example${chart}`);await page.getByRole('button',{name:'导入起盘',exact:true}).click();await expect(page.getByRole('heading',{name:'迁移测试的紫微命盘'})).toBeVisible();
 });
-test('五种视口命盘没有页面横向溢出',async({page},info)=>{
- for(const width of [360,390,768,1024,1440]){await page.setViewportSize({width,height:960});await page.goto(url(chart,info.project.name==='vite'));await expect(page.getByRole('button',{name:'分享命盘',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),String(width)).toBe(true);}
+test('响应式断点命盘没有页面横向溢出',async({page},info)=>{
+ for(const width of [360,390,700,701,768,800,801,900,901,1024,1150,1151,1440]){await page.setViewportSize({width,height:960});await page.goto(url(chart,info.project.name==='vite'));await expect(page.getByRole('button',{name:'分享命盘',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),String(width)).toBe(true);}
 });

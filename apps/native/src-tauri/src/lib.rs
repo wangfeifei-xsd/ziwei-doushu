@@ -1,7 +1,7 @@
 mod ai;
+mod dataset;
 mod db;
 mod secrets;
-mod dataset;
 use db::{Database, ImportRecord, ImportSummary, Profile, Result};
 use secrets::SecretStore;
 use std::collections::{BTreeMap, HashMap};

@@ -4,7 +4,7 @@ import { usePathname } from '@ziwei/runtime/navigation';
 import ThemeToggle from '@ziwei/ui/components/ThemeToggle';
 
 const LINKS = [
-  ['/', '首页'], ['/qipan', '紫微起盘'], ['/learn', '命盘学习'], ['/dataset', '资料研习'], ['/heming', '双人合盘'],
+  ['/', '首页'], ['/qipan', '紫微起盘'], ['/learn', '命盘学习'], ['/heming', '双人合盘'],
   ['/knowledge', '星曜知识'], ['/library', '古籍原典'], ['/profiles', '生辰档案'],
 ];
 

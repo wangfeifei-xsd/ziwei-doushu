@@ -22,7 +22,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/qipan`, priority: 0.95, changeFrequency: 'weekly', lastModified: lastmod },
     { url: `${BASE_URL}/chart`, priority: 0.95, changeFrequency: 'weekly', lastModified: lastmod },
     { url: `${BASE_URL}/learn`, priority: 0.9, changeFrequency: 'monthly' },
-    { url: `${BASE_URL}/dataset`, priority: 0.8, changeFrequency: 'monthly' },
     { url: `${BASE_URL}/heming`, priority: 0.7, changeFrequency: 'weekly', lastModified: lastmod },
     { url: `${BASE_URL}/library`, priority: 0.85, changeFrequency: 'weekly', lastModified: lastmod },
     { url: `${BASE_URL}/knowledge`, priority: 0.9, changeFrequency: 'weekly', lastModified: lastmod },

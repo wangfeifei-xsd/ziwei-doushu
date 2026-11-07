@@ -46,9 +46,12 @@ test('命盘学习：十组生辰切换、入口和桌面手机布局', async ({
   await cases.getByRole('button', { name: /空宫借星/ }).click();
   await expect(page.getByRole('textbox', { name: '关于这张盘，你想了解什么？' })).toHaveValue('');
   await page.setViewportSize({ width: 390, height: 844 });
-  const mobileChart = await page.getByLabel('模拟命盘', { exact: true }).boundingBox();
-  const mobileChat = await page.getByLabel('命盘学习问答', { exact: true }).boundingBox();
-  expect(mobileChart!.y + mobileChart!.height).toBeLessThan(mobileChat!.y);
+  // Read both regions in one frame: the chart height transitions during a viewport resize.
+  await expect.poll(() => page.locator('.learn-layout').evaluate(layout => {
+    const chart = layout.querySelector('[aria-label="模拟命盘"]')!.getBoundingClientRect();
+    const chat = layout.querySelector('[aria-label="命盘学习问答"]')!.getBoundingClientRect();
+    return chat.top - chart.bottom;
+  })).toBeGreaterThan(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(page.locator('.learn-recommendations')).not.toHaveAttribute('open');
   await page.screenshot({ path: `.runtime/learning/${info.project.name}-mobile.png`, fullPage: true, animations: 'disabled' });
