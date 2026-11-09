@@ -36,6 +36,8 @@ npm run build:desktop -- --ci --target x86_64-pc-windows-msvc --bundles nsis --n
 
 产物在对应 `bundle/nsis/`。常规安装器可引导安装 WebView2，需要网络；完全离线的首次安装需预装兼容 WebView2，本轮未内置离线 Runtime 安装包。应用安装后排盘、档案与古籍可离线使用。升级/卸载与非 ASCII 用户路径应单独验收。
 
+Windows CI 会先运行 `node scripts/prepare-windows-nsis.mjs`，通过 GitHub 官方 Release Asset API 下载 NSIS 和 Tauri 插件，失败最多尝试三次，并验证固定 SHA-256 后写入 Tauri 工具缓存，避免 Release 下载地址返回 504 时中断打包。本机遇到同类问题时可在 `gh auth login` 后运行此脚本再构建。升级 Tauri CLI 时须同时核对脚本中的工具版本、Asset ID 与校验值。
+
 ## Android
 
 需要 JDK 17、Android SDK/NDK。CI 固定 SDK 36、Build Tools `36.0.0`、NDK `28.2.13676358`，Rust target `aarch64-linux-android`，最低 Android API 24。按实际 SDK 安装路径设置 `ANDROID_HOME` 和 `NDK_HOME`。
