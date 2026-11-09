@@ -35,3 +35,4 @@ apps/native/src-tauri/plugins/platform/permissions/schemas/
 *.pfx
 *.mobileprovision
 .runtime-*-sign.json
+output/

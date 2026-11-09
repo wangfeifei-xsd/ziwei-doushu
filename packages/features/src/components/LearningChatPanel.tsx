@@ -1,8 +1,9 @@
 'use client';
 import type { DatasetLoadStatus } from '@ziwei/domain/ziwei/dataset';
 import DatasetStatus from './DatasetStatus';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from '@ziwei/runtime/navigation';
+import { useModal } from '@ziwei/runtime/modal';
 import { useServices } from '@ziwei/runtime/services';
 import type { AIMessage } from '@ziwei/domain/ai/errors';
 import type { AnalysisSelection } from '@ziwei/domain/ai/analysis';
@@ -29,6 +30,18 @@ function Answer({ text }: { text: string }) {
   })}</div>;
 }
 
+function ReadingDialog({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useModal(true, onClose);
+  useEffect(() => {
+    const dialog = dialogRef.current!;
+    dialog.showModal();
+    return () => { dialog.close(); };
+  }, []);
+  return <dialog ref={dialogRef} className="learn-reader" aria-label="展开阅读命盘问答"
+    onCancel={event => { event.preventDefault(); onClose(); }}>{children}</dialog>;
+}
+
 export default function LearningChatPanel({ lesson, chart, selection }: {
   lesson: LearningCase; chart: ZiweiChart; selection: AnalysisSelection;
 }) {
@@ -39,10 +52,15 @@ export default function LearningChatPanel({ lesson, chart, selection }: {
   const [error, setError] = useState('');
   const [datasetStatus, setDatasetStatus] = useState<DatasetLoadStatus[]>([]);
   const [retryQuestion, setRetryQuestion] = useState('');
+  const [expanded, setExpanded] = useState(false);
   const history = useRef<AIMessage[]>([]);
   const requestRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const readingButtonRef = useRef<HTMLButtonElement>(null);
+  const readingScrollProgress = useRef(0);
+  const wasExpanded = useRef(false);
   const followStream = useRef(true);
   const palace = chart.palaces.find(item => item.branch === selection.palaceBranch);
   const scope = `${selection.view === 'liunian' ? `${selection.liunianYear} 年流年` : selection.view === 'daxian' ? '当前大限' : '本命'}${palace ? ` · ${palace.name}` : ''}${selection.siHua ? ` · ${selection.siHua.starName}化${selection.siHua.siHua}` : ''}`;
@@ -51,6 +69,39 @@ export default function LearningChatPanel({ lesson, chart, selection }: {
   useEffect(() => {
     if (messages.length && scrollRef.current && followStream.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
+  useEffect(() => {
+    const scroll = scrollRef.current;
+    if (scroll) scroll.scrollTop = followStream.current ? scroll.scrollHeight
+      : readingScrollProgress.current * (scroll.scrollHeight - scroll.clientHeight);
+    if (wasExpanded.current && !expanded) readingButtonRef.current?.focus({ preventScroll: true });
+    wasExpanded.current = expanded;
+    if (expanded) return;
+    const panel = panelRef.current!;
+    let frame = 0;
+    const updateHeight = () => {
+      // The panel gains reading space as it reaches its sticky position below the navigation.
+      panel.style.setProperty('--learn-chat-top', `${Math.max(96, panel.getBoundingClientRect().top)}px`);
+    };
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(updateHeight);
+    };
+    updateHeight();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+    };
+  }, [expanded]);
+
+  const toggleReading = (next: boolean) => {
+    const scroll = scrollRef.current;
+    readingScrollProgress.current = scroll && scroll.scrollHeight > scroll.clientHeight
+      ? scroll.scrollTop / (scroll.scrollHeight - scroll.clientHeight) : 0;
+    setExpanded(next);
+  };
 
   const send = async (question: string) => {
     const text = question.trim();
@@ -93,14 +144,20 @@ export default function LearningChatPanel({ lesson, chart, selection }: {
       ? { ...message, status: 'stopped' } : message));
   };
 
-  return <section className={`learn-chat${messages.length === 0 ? ' learn-chat-idle' : ''}`} aria-label="命盘学习问答">
+  const panel = <section ref={panelRef} className={`learn-chat${messages.length === 0 ? ' learn-chat-idle' : ''}${expanded ? ' learn-chat-expanded' : ''}`} aria-label="命盘学习问答">
     <header className="learn-chat-heading">
       <p className="eyebrow">问盘 · 学理</p>
-      <h2>一起读懂这张盘</h2>
+      <div className="learn-chat-title"><h2>一起读懂这张盘</h2>
+        {messages.length > 0 && <button type="button" ref={readingButtonRef} className="learn-reading-toggle"
+          aria-haspopup={expanded ? undefined : 'dialog'} autoFocus={expanded} onClick={() => toggleReading(!expanded)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+            <path d={expanded ? 'M4 9h5V4 M20 9h-5V4 M4 15h5v5 M20 15h-5v5' : 'M9 4H4v5 M15 4h5v5 M4 15v5h5 M20 15v5h-5'} />
+          </svg>{expanded ? '收起阅读' : '展开阅读'}
+        </button>}
+      </div>
       <p>从盘面事实出发，把每一步看盘思路讲清楚。</p>
       <div className="learn-scope" aria-label="学习提问范围"><span />{lesson.title} · {scope}</div>
     </header>
-    <DatasetStatus records={datasetStatus} />
     {messages.length === 0 ? <details className="learn-recommendations">
       <summary>推荐学习问题<span className="learn-expand-label">展开</span><span className="learn-collapse-label">收起</span></summary>
       <div className="learn-empty">
@@ -114,6 +171,7 @@ export default function LearningChatPanel({ lesson, chart, selection }: {
       </div>
     </details> : <div className="learn-messages" ref={scrollRef} role="log" aria-label="学习对话" aria-live="polite" aria-busy={loading}
       onScroll={() => { const el = scrollRef.current; if (el) followStream.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64; }}>
+      <DatasetStatus records={datasetStatus} />
       {messages.map((message, index) => <article key={index} className={`learn-message learn-message-${message.role}`}>
         <div className="learn-message-label">{message.role === 'user' ? '我的问题' : '学习助手'}{message.scope && <span>{message.scope}</span>}</div>
         {message.role === 'user' ? <p className="learn-question-text">{message.content}</p> : <>
@@ -135,7 +193,7 @@ export default function LearningChatPanel({ lesson, chart, selection }: {
     </div></div>}
     <form className="learn-composer" onSubmit={event => { event.preventDefault(); void send(input); }}>
       <label htmlFor="learning-question">关于这张盘，你想了解什么？</label>
-      <textarea id="learning-question" ref={inputRef} value={input} rows={3} disabled={loading}
+      <textarea id="learning-question" ref={inputRef} value={input} rows={2} disabled={loading}
         placeholder={`例如：这张盘的${lesson.title}应该怎样理解？`} onChange={event => setInput(event.target.value)}
         onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void send(input); } }} />
       <div className="learn-composer-actions"><span>Ctrl / ⌘ + Enter</span>
@@ -145,4 +203,5 @@ export default function LearningChatPanel({ lesson, chart, selection }: {
     </form>
     <p className="learn-chat-footnote">传统文化学习参考 · 回答由你配置的模型生成</p>
   </section>;
+  return expanded ? <ReadingDialog onClose={() => toggleReading(false)}>{panel}</ReadingDialog> : panel;
 }
