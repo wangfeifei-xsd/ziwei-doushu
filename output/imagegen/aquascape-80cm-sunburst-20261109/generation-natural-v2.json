@@ -1,0 +1,24 @@
+{
+  "model": "gpt-image-2.5-sunburst",
+  "workflow": "installed image_gen.py CLI, edit with three reference images, quality high, size auto",
+  "revision_request": "More natural, closer to the original material; reduce the artificial architectural bridge appearance.",
+  "design_dimensions_cm": {
+    "overall_length_approx": 80,
+    "target_height": 24,
+    "height_limit": 25
+  },
+  "changes": [
+    "Irregular layered stone contours",
+    "Asymmetrical cave openings",
+    "Uneven ledges and front-to-back rock offsets",
+    "Retained compact footprint and original material"
+  ],
+  "actual_output_dimensions_px": [
+    1908,
+    824
+  ],
+  "image": "aquascape-front-natural-v2-sunburst.png",
+  "prompt": "natural-v2-prompt.txt",
+  "postprocessing": "None; no resizing or cropping.",
+  "dimensions_note": "These are concept design targets, not measurements of a built physical object."
+}

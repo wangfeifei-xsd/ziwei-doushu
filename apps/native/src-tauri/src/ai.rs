@@ -13,6 +13,12 @@ pub struct ModelConfig {
     pub base_url: String,
     pub model: String,
     pub mode: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_timeout_seconds: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_request_bytes: Option<u64>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +61,18 @@ pub fn validate_config(config: &ModelConfig) -> Result<reqwest::Url> {
     {
         return Err("模型名称或接口类型无效。".into());
     }
+    if config
+        .max_output_tokens
+        .is_some_and(|n| n == 0 || n > 9_007_199_254_740_991)
+        || config
+            .request_timeout_seconds
+            .is_some_and(|n| n == 0 || n > 2_147_483)
+        || config
+            .max_request_bytes
+            .is_some_and(|n| !(1024..=2_147_483_647).contains(&n))
+    {
+        return Err("输出 token、请求超时或请求容量配置无效。".into());
+    }
     url.set_path(&format!(
         "{}/{}",
         path,
@@ -86,9 +104,17 @@ pub async fn public_settings(state: &AppState) -> Result<Value> {
     if config.mode.is_empty() {
         config.mode = "chat".into();
     }
-    Ok(
-        json!({"baseURL":config.base_url,"model":config.model,"mode":config.mode,"apiKey":"","hasApiKey":state.secrets.has_key(),"locked":state.secrets.locked(),"hasVault":state.secrets.exists(),"configured":validate_config(&config).is_ok()&&state.secrets.has_key()&&!state.secrets.locked(),"source":state.secrets.source()}),
-    )
+    let mut settings = serde_json::to_value(&config).map_err(|_| "配置格式无效。")?;
+    let public = json!({
+        "apiKey":"", "hasApiKey":state.secrets.has_key(), "locked":state.secrets.locked(),
+        "hasVault":state.secrets.exists(), "source":state.secrets.source(),
+        "configured":validate_config(&config).is_ok()&&state.secrets.has_key()&&!state.secrets.locked(),
+    });
+    settings
+        .as_object_mut()
+        .unwrap()
+        .extend(public.as_object().unwrap().clone());
+    Ok(settings)
 }
 #[tauri::command]
 pub async fn model_get(state: State<'_, AppState>) -> Result<Value> {
@@ -197,6 +223,15 @@ pub async fn ai_stream(
     channel: Channel<WireEvent>,
     draft: Option<ModelDraft>,
 ) -> Result<()> {
+    stream_registered(&state, request_id, body, channel, draft).await
+}
+async fn stream_registered(
+    state: &AppState,
+    request_id: String,
+    body: Value,
+    channel: Channel<WireEvent>,
+    draft: Option<ModelDraft>,
+) -> Result<()> {
     let token = state
         .requests
         .lock()
@@ -204,8 +239,32 @@ pub async fn ai_stream(
         .get(&request_id)
         .cloned()
         .ok_or("请求已取消或尚未注册。")?;
-    let timeout = Duration::from_secs(if draft.is_some() { 30 } else { 180 });
-    let result = timed_run(&state, body, channel, draft, token, timeout).await;
+    let is_test = draft.is_some();
+    let resolved = match draft {
+        Some(value) => Ok(value),
+        None => configuration(state).await.map(|config| ModelDraft {
+            config,
+            api_key: String::new(),
+            remember: false,
+            password: String::new(),
+        }),
+    };
+    let result = match resolved {
+        Ok(resolved) => {
+            let timeout = Duration::from_secs(if is_test {
+                30
+            } else {
+                resolved.config.request_timeout_seconds.unwrap_or(600)
+            });
+            timed_run(state, body, channel, Some(resolved), token, timeout).await
+        }
+        Err(error) => channel
+            .send(WireEvent::End {
+                error: Some(error.clone()),
+            })
+            .map_err(|_| "界面已离开，响应已取消。".to_string())
+            .and(Err(error)),
+    };
     state.requests.lock().await.remove(&request_id);
     result
 }
@@ -249,46 +308,57 @@ async fn run(
     let endpoint = validate_config(&config)?;
     validate_key(&key)?;
     // Only the configured model endpoint is reachable; no general purpose HTTP proxy.
-    if !body.is_object()
-        || serde_json::to_vec(&body)
-            .map_err(|_| "请求格式错误。")?
-            .len()
-            > 262_144
-    {
-        return Err("模型请求过长或格式错误。".into());
+    if !body.is_object() {
+        return Err("模型请求格式错误。".into());
+    }
+    for key in ["max_output_tokens", "max_completion_tokens", "max_tokens"] {
+        body.as_object_mut().unwrap().remove(key);
     }
     body["model"] = json!(config.model);
     body["stream"] = json!(true);
     if config.mode == "responses" {
         body["store"] = json!(false);
-        body["max_output_tokens"] = json!(4096);
+        if let Some(tokens) = config.max_output_tokens {
+            body["max_output_tokens"] = json!(tokens);
+        }
         if !body["input"].is_array() {
             return Err("Responses 请求数据无效。".into());
         }
     } else {
-        body["max_completion_tokens"] = json!(4096);
+        if let Some(tokens) = config.max_output_tokens {
+            body["max_completion_tokens"] = json!(tokens);
+        }
         if !body["messages"].is_array() {
             return Err("聊天请求数据无效。".into());
         }
     }
-    let response = state
+    let serialized = serde_json::to_vec(&body).map_err(|_| "请求格式错误。")?;
+    if serialized.len() as u64 > config.max_request_bytes.unwrap_or(16 * 1024 * 1024) {
+        return Err(
+            "请求超过当前容量设置，完整资料未裁剪。请在模型配置中提高请求容量后重试。".into(),
+        );
+    }
+    let mut response = state
         .http
         .post(endpoint)
         .bearer_auth(&*key)
         .header(reqwest::header::ACCEPT, "text/event-stream")
-        .json(&body)
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .body(serialized)
         .send()
         .await
         .map_err(|_| "无法连接模型服务，请检查接口地址和网络。")?;
     let status = response.status();
     if !status.is_success() {
-        return Err(match status.as_u16() {
-            401 | 403 => "模型认证失败，请检查 API Key 和模型权限。",
-            404 => "模型或接口不存在。",
-            429 => "模型额度不足或请求过于频繁。",
-            _ => "模型服务暂时不可用。",
+        let mut bytes = Vec::new();
+        while let Ok(Some(chunk)) = response.chunk().await {
+            if bytes.len() + chunk.len() > 65_536 {
+                break;
+            }
+            bytes.extend_from_slice(&chunk);
         }
-        .into());
+        let payload: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
+        return Err(provider_failure(status.as_u16(), &payload));
     }
     if !response
         .headers()
@@ -310,6 +380,46 @@ async fn run(
         }
     }
     Ok(())
+}
+
+fn provider_failure(status: u16, payload: &Value) -> String {
+    match status {
+        401 | 403 => return "模型服务认证失败，请检查 API Key 和模型访问权限。".into(),
+        404 => return "模型或接口不存在，请检查接口地址和模型名。".into(),
+        429 => return "模型服务额度不足或请求过于频繁，请检查额度后重试。".into(),
+        413 => {
+            return "模型服务拒绝了请求体大小，请调整服务商请求容量或更换模型服务；完整资料未裁剪。"
+                .into()
+        }
+        _ => {}
+    }
+    let description = payload.to_string().to_lowercase();
+    if [
+        "context_length",
+        "context_window",
+        "context window",
+        "maximum context",
+        "too many tokens",
+        "prompt is too long",
+        "input is too long",
+    ]
+    .iter()
+    .any(|value| description.contains(value))
+    {
+        return "模型上下文容量不足，完整资料未裁剪。请选择支持更长上下文的模型后重试。".into();
+    }
+    if [
+        "max_output_tokens",
+        "max_completion_tokens",
+        "max_tokens",
+        "output tokens",
+    ]
+    .iter()
+    .any(|value| description.contains(value))
+    {
+        return "模型输出 token 配置不兼容，请在模型配置中调整输出额度后重试。".into();
+    }
+    "模型服务暂时不可用，请稍后重试。".into()
 }
 
 #[cfg(test)]
@@ -387,6 +497,7 @@ mod tests {
                 base_url,
                 model: "fixture".into(),
                 mode: mode.into(),
+                ..Default::default()
             },
             api_key: "fixture-only-key".into(),
             remember: false,
@@ -397,6 +508,10 @@ mod tests {
     async fn native_http_stream_protocols_auth_and_incremental_channel() {
         let dir = tempfile::tempdir().unwrap();
         let state = state(dir.path());
+        let public = public_settings(&state).await.unwrap();
+        assert!(public.get("maxOutputTokens").is_none());
+        assert!(public.get("requestTimeoutSeconds").is_none());
+        assert!(public.get("maxRequestBytes").is_none());
         for mode in ["chat", "responses"] {
             let (url, server) = mock(200, 20);
             let received = Arc::new(Mutex::new(Vec::new()));
@@ -458,6 +573,168 @@ mod tests {
         }
     }
     #[tokio::test]
+    async fn complete_large_payloads_and_optional_output_settings() {
+        use std::io::{BufRead, BufReader};
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../assets/datasets/ziwei-v4.0-13d/year-1990.jsonl.zst");
+        let mut decoder =
+            zstd::stream::read::Decoder::new(std::fs::File::open(path).unwrap()).unwrap();
+        decoder.window_log_max(27).unwrap();
+        let records: Vec<Value> = BufReader::new(decoder)
+            .lines()
+            .take(2)
+            .map(|line| serde_json::from_str(&line.unwrap()).unwrap())
+            .collect();
+        assert!(records
+            .iter()
+            .all(|r| r["c"].as_object().unwrap().len() == 13));
+        let dir = tempfile::tempdir().unwrap();
+        let state = state(dir.path());
+        for mode in ["chat", "responses"] {
+            for (count, quota) in [(1, None), (2, Some(32768))] {
+                let (url, server) = mock(200, 0);
+                let mut configured = draft(url, mode);
+                configured.config.max_output_tokens = quota;
+                let messages = json!([
+                    {"role":"user","content":serde_json::to_string(&records[..count]).unwrap()},
+                    {"role":"assistant","content":"保留历史条件与例外。".repeat(12000)},
+                    {"role":"user","content":"请结合全部资料回答。"}
+                ]);
+                let mut body = if mode == "chat" {
+                    json!({"messages":messages})
+                } else {
+                    json!({"input":messages})
+                };
+                // A stale UI quota must not override the saved configuration.
+                body["max_tokens"] = json!(4096);
+                body["max_output_tokens"] = json!(4096);
+                body["max_completion_tokens"] = json!(4096);
+                assert!(serde_json::to_vec(&body).unwrap().len() > 262144);
+                timed_run(
+                    &state,
+                    body,
+                    Channel::new(|_| Ok(())),
+                    Some(configured),
+                    CancellationToken::new(),
+                    Duration::from_secs(5),
+                )
+                .await
+                .unwrap();
+                let request = server.join().unwrap();
+                let forwarded: Value =
+                    serde_json::from_str(request.split_once("\r\n\r\n").unwrap().1).unwrap();
+                assert_eq!(
+                    forwarded[if mode == "chat" { "messages" } else { "input" }],
+                    messages,
+                    "all 13 topics and complete history must reach the provider byte-for-byte"
+                );
+                assert!(forwarded.get("max_tokens").is_none());
+                let field = if mode == "chat" {
+                    "max_completion_tokens"
+                } else {
+                    "max_output_tokens"
+                };
+                match quota {
+                    Some(tokens) => assert_eq!(forwarded[field], tokens),
+                    None => assert!(
+                        forwarded.get(field).is_none(),
+                        "blank config uses the provider default"
+                    ),
+                }
+                assert!(forwarded
+                    .get(if mode == "chat" {
+                        "max_output_tokens"
+                    } else {
+                        "max_completion_tokens"
+                    })
+                    .is_none());
+            }
+        }
+    }
+    #[tokio::test]
+    async fn capacity_rejection_does_not_send_a_partial_request() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let state = state(dir.path());
+        let mut configured = draft(
+            format!("http://{}/v1", listener.local_addr().unwrap()),
+            "chat",
+        );
+        configured.config.max_request_bytes = Some(1024);
+        let error = run(
+            &state,
+            json!({"messages":[{"role":"user","content":"完整原文".repeat(1000)}]}),
+            Channel::new(|_| Ok(())),
+            Some(configured),
+        )
+        .await
+        .unwrap_err();
+        assert!(error.contains("完整资料未裁剪"));
+        assert_eq!(
+            listener.accept().unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+    }
+    #[tokio::test]
+    async fn bad_saved_configuration_terminates_channel_and_releases_registration() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = state(dir.path());
+        state
+            .db
+            .set("model-config", Some("broken json"))
+            .await
+            .unwrap();
+        state
+            .requests
+            .lock()
+            .await
+            .insert("bad-config".into(), CancellationToken::new());
+        let received = Arc::new(Mutex::new(Vec::new()));
+        let out = received.clone();
+        let result = stream_registered(
+            &state,
+            "bad-config".into(),
+            json!({"messages":[]}),
+            Channel::new(move |event| {
+                if let tauri::ipc::InvokeResponseBody::Json(data) = event {
+                    out.lock().unwrap().push(data);
+                }
+                Ok(())
+            }),
+            None,
+        )
+        .await;
+        assert!(result.unwrap_err().contains("无法读取"));
+        assert!(state.requests.lock().await.is_empty());
+        let events = received.lock().unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(
+            serde_json::from_str::<Value>(&events[0]).unwrap()["type"],
+            "end"
+        );
+    }
+    #[test]
+    fn provider_capacity_and_output_failures_are_distinct_and_safe() {
+        for (status, payload, expected) in [
+            (
+                400,
+                json!({"error":{"code":"context_length_exceeded","message":"secret transcript"}}),
+                "上下文容量不足",
+            ),
+            (413, json!({"error":"secret transcript"}), "请求体大小"),
+            (
+                400,
+                json!({"error":{"param":"max_output_tokens","message":"secret transcript"}}),
+                "输出 token 配置不兼容",
+            ),
+        ] {
+            let error = provider_failure(status, &payload);
+            assert!(error.contains(expected));
+            assert!(!error.contains("secret transcript"));
+        }
+    }
+    #[tokio::test]
     async fn unlock_after_restart_updates_settings_and_tests_saved_key() {
         let started = std::time::Instant::now();
         let dir = tempfile::tempdir().unwrap();
@@ -467,11 +744,15 @@ mod tests {
             .secrets
             .save("fixture-only-key".into(), true, "fixture-password")
             .unwrap();
+        let mut saved_config = draft(base_url.clone(), "responses").config;
+        saved_config.max_output_tokens = Some(32768);
+        saved_config.request_timeout_seconds = Some(900);
+        saved_config.max_request_bytes = Some(32 * 1024 * 1024);
         first
             .db
             .set(
                 "model-config",
-                Some(&serde_json::to_string(&draft(base_url.clone(), "responses").config).unwrap()),
+                Some(&serde_json::to_string(&saved_config).unwrap()),
             )
             .await
             .unwrap();
@@ -497,6 +778,9 @@ mod tests {
         assert_eq!(unlocked["locked"], false);
         assert_eq!(unlocked["configured"], true);
         assert_eq!(unlocked["apiKey"], "");
+        assert_eq!(unlocked["maxOutputTokens"], 32768);
+        assert_eq!(unlocked["requestTimeoutSeconds"], 900);
+        assert_eq!(unlocked["maxRequestBytes"], 33554432);
         let mut probe = draft(base_url, "responses");
         probe.api_key.clear();
         timed_run(
@@ -597,6 +881,21 @@ mod tests {
             json!({"baseURL":"https://example.com/v1","model":"fixture","mode":"responses"}),
         )
         .unwrap();
+        assert!(config.max_output_tokens.is_none());
+        assert!(config.request_timeout_seconds.is_none());
+        assert!(config.max_request_bytes.is_none());
+        for value in [
+            json!({"maxOutputTokens":0}),
+            json!({"requestTimeoutSeconds":0}),
+            json!({"maxRequestBytes":1023}),
+        ] {
+            let mut invalid = serde_json::to_value(&config).unwrap();
+            invalid
+                .as_object_mut()
+                .unwrap()
+                .extend(value.as_object().unwrap().clone());
+            assert!(validate_config(&serde_json::from_value(invalid).unwrap()).is_err());
+        }
         assert_eq!(
             validate_config(&config).unwrap().as_str(),
             "https://example.com/v1/responses"

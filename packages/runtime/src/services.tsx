@@ -4,7 +4,7 @@ import type { BirthFormState } from '@ziwei/domain/birth';
 import type { BirthProfile } from '@ziwei/domain/ziwei/profiles';
 import type { AIConfig, ModelSettings } from '@ziwei/domain/ai/config';
 import type { ProfileExportV1, ImportSummary } from '@ziwei/domain/profiles-transfer';
-import type { DatasetRepository } from '@ziwei/domain/ziwei/dataset';
+import type { DatasetRepository, DatasetLoadStatus } from '@ziwei/domain/ziwei/dataset';
 
 export interface ProfileRepository {
   list(signal?: AbortSignal): Promise<BirthProfile[]>;
@@ -14,7 +14,7 @@ export interface ProfileRepository {
   remove(id: string): Promise<boolean>;
 }
 export type ModelDraft = AIConfig & { remember?: boolean; password?: string };
-export type AIEvent = { type: 'delta'; text: string } | { type: 'done' } | { type: 'error'; message: string };
+export type AIEvent = { type: 'delta'; text: string } | { type: 'done' } | { type: 'error'; message: string } | { type: 'dataset'; records: DatasetLoadStatus[] };
 export type FileActionResult = 'saved' | 'shared' | 'cancelled';
 export interface AppServices {
   platform: 'web' | 'native' | 'preview';

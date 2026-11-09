@@ -1,8 +1,31 @@
 import assert from 'node:assert/strict';
-import { getAIEndpoint, parseAIConfig } from '../../packages/domain/src/ai/config';
+import { DEFAULT_AI_REQUEST_BYTES, DEFAULT_AI_TIMEOUT_SECONDS, getAIEndpoint, parseAIConfig } from '../../packages/domain/src/ai/config';
+import { requestBody } from '@ziwei/features/ai/client';
 
 const input = { baseURL: 'https://models.example.com/v1', model: 'example-model', mode: 'chat', apiKey: 'test-secret' };
 const chat = parseAIConfig(input);
+assert.equal(DEFAULT_AI_REQUEST_BYTES,16*1024*1024);
+assert.equal(DEFAULT_AI_TIMEOUT_SECONDS,600);
+assert.equal(chat.maxOutputTokens,undefined);
+assert.equal(chat.maxRequestBytes,undefined);
+assert.equal(chat.requestTimeoutSeconds,undefined);
+const extended=parseAIConfig({...input,maxOutputTokens:32768,requestTimeoutSeconds:900,maxRequestBytes:32*1024*1024});
+assert.equal(extended.maxOutputTokens,32768);
+assert.equal(extended.requestTimeoutSeconds,900);
+assert.equal(extended.maxRequestBytes,33554432);
+assert.deepEqual(parseAIConfig({...extended,maxOutputTokens:null,requestTimeoutSeconds:null,maxRequestBytes:null}),chat,'null clears optional settings for old/new config interoperability');
+for(const mode of ['chat','responses'] as const){
+  const basic=requestBody(mode,'fixture',[{role:'user',content:'问题'}]);
+  assert.equal('max_tokens' in basic,false);assert.equal('max_output_tokens' in basic,false);assert.equal('max_completion_tokens' in basic,false);
+  const custom=requestBody(mode,'fixture',[{role:'user',content:'问题'}],extended);
+  assert.equal(custom[mode==='chat'?'max_completion_tokens':'max_output_tokens'],32768);
+  assert.equal('requestTimeoutSeconds' in custom,false);assert.equal('maxRequestBytes' in custom,false);
+}
+for(const [field,invalid] of [
+  ['maxOutputTokens',[0,-1,1.5,Infinity,NaN,'32768',Number.MAX_SAFE_INTEGER+1]],
+  ['requestTimeoutSeconds',[0,-1,0.5,2147484,'600']],
+  ['maxRequestBytes',[0,1023,1024.5,2147483648,'16777216']],
+] as const){for(const value of invalid)assert.throws(()=>parseAIConfig({...input,[field]:value}));}
 assert.equal(getAIEndpoint(chat).href, 'https://models.example.com/v1/chat/completions');
 const responses = parseAIConfig({ ...input, mode: 'responses' });
 assert.equal(getAIEndpoint(responses).href, 'https://models.example.com/v1/responses');
@@ -37,4 +60,4 @@ for (const invalid of [
   assert.throws(() => parseAIConfig(invalid), Error);
 }
 
-console.log('✓ 模型配置回归通过：两种接口路径、地址校验、密钥保留与替换、字段类型和长度限制。');
+console.log('✓ 模型配置：两种接口、地址/密钥校验、兼容旧配置、可选输出/超时/容量校验、未配置时省略输出参数。');

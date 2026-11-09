@@ -58,7 +58,7 @@ npm run dev:app                # 真正 Tauri 桌面应用 + Vite
 
 ## 环境、数据、日志
 
-- 根目录 `.env.local`：网站 `OPENAI_*`、`H2_DATA_DIR`、`AI_CONFIG_DIR`、`JAVA_BIN`、`NEXT_PUBLIC_SITE_URL`；示例见 `.env.example`。
+- 根目录 `.env.local`：网站 `OPENAI_*`、`AI_MAX_OUTPUT_TOKENS`、`AI_REQUEST_TIMEOUT_SECONDS`、`AI_MAX_REQUEST_BYTES`、`H2_DATA_DIR`、`AI_CONFIG_DIR`、`JAVA_BIN`、`NEXT_PUBLIC_SITE_URL`；示例见 `.env.example`。
 - 网站数据库：默认根目录 `data/ziwei.mv.db`；AI 配置默认同目录 `ai-config.json`。相对路径按仓库根目录解析。独立部署包默认按包目录解析，建议部署显式设置绝对路径。
 - 应用公开分享站点：编译时环境变量 `VITE_SITE_URL=https://your-site.example`，或原生宿主的 Vite `.env.local`。只含公开地址，禁止放模型密钥。没有有效 HTTPS 地址时仍可导出命盘图片，链接分享禁用。
 - 日志：`.runtime/logs/web.log`、`.runtime/logs/app-web.log`；状态：`.runtime/services/`。`tail -f .runtime/logs/web.log` 查看网站诊断。

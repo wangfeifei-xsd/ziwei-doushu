@@ -1,4 +1,6 @@
 'use client';
+import type { DatasetLoadStatus } from '@ziwei/domain/ziwei/dataset';
+import DatasetStatus from './DatasetStatus';
 import { useServices } from '@ziwei/runtime/services';
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,6 +13,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   analysisScope?: string;
+  status?: 'streaming' | 'complete' | 'failed' | 'stopped';
 }
 
 interface InsightPanelProps {
@@ -65,6 +68,8 @@ export default function InsightPanel({ chart, timeView, liunianYear, selectedPal
   useEffect(() => () => requestRef.current?.abort(), [chart]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [datasetStatus, setDatasetStatus] = useState<DatasetLoadStatus[]>([]);
+  const [requestError, setRequestError] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTopic, setActiveTopic] = useState<AnalysisTopic>('overview');
   const messagesRef = useRef<Message[]>([]); // always-current copy for closures
@@ -89,22 +94,26 @@ export default function InsightPanel({ chart, timeView, liunianYear, selectedPal
     }
   }, [messages]);
 
-  const streamResponse = async (apiMessages: { role: 'user' | 'assistant'; content: string }[]) => {
+  const streamResponse = async (apiMessages: { role: 'user' | 'assistant'; content: string }[], question: string) => {
     requestRef.current?.abort();
     const controller = new AbortController();
     requestRef.current = controller;
+    setDatasetStatus([]); setRequestError('');
     try {
       await consumeAI(services.ai.stream({ kind: 'interpret', body: { chart, messages: apiMessages,
         selection: { view: timeView, liunianYear, topic: activeTopic, palaceBranch: selectedPalace?.branch, siHua: selectedSiHua ?? undefined },
       } }, controller.signal), text => {
         if (controller.signal.aborted) return;
         setMessages(prev => prev[prev.length - 1]?.role === 'assistant'
-          ? [...prev.slice(0, -1), { role: 'assistant', content: text }]
-          : [...prev, { role: 'assistant', content: text }]);
-      });
+          ? [...prev.slice(0, -1), { role: 'assistant', content: text, status: 'streaming' }]
+          : [...prev, { role: 'assistant', content: text, status: 'streaming' }]);
+      }, records => { if (!controller.signal.aborted) setDatasetStatus(records); });
+      if (!controller.signal.aborted) setMessages(previous => previous.map((message, index) => index === previous.length - 1 && message.role === 'assistant' ? { ...message, status: 'complete' } : message));
     } catch (e) {
       if (controller.signal.aborted) return;
-      setMessages(prev => [...prev, { role: 'assistant', content: e instanceof Error ? e.message : '解读失败，请稍后重试。' }]);
+      setRequestError(e instanceof Error ? e.message : '解读失败，请稍后重试。');
+      setInput(current => current || question);
+      setMessages(previous => previous.map((message, index) => index === previous.length - 1 && message.role === 'assistant' ? { ...message, status: 'failed' } : message));
     } finally {
       if (requestRef.current === controller) {
         setLoading(false);
@@ -120,18 +129,26 @@ export default function InsightPanel({ chart, timeView, liunianYear, selectedPal
 
     const userMsg: Message = { role: 'user', content: text.trim(), analysisScope };
     // Capture current messages synchronously via ref (avoids stale closure)
-    const apiMessages = [...messagesRef.current, userMsg].map(m => ({
+    const apiMessages = [...messagesRef.current.filter(message => !['failed', 'stopped'].includes(message.status ?? '')), userMsg].map(m => ({
       role: m.role,
       content: m.analysisScope ? `【提问时的视图：${m.analysisScope}】\n${m.content}` : m.content,
     }));
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
-    void streamResponse(apiMessages);
+    void streamResponse(apiMessages, text.trim());
   };
 
   const handleSend = () => {
     sendMessage(input);
+  };
+
+  const stop = () => {
+    requestRef.current?.abort(); requestRef.current = null;
+    setLoading(false); loadingRef.current = false;
+    setInput([...messagesRef.current].reverse().find(message => message.role === 'user')?.content ?? '');
+    setMessages(previous => previous.map(message => message.status === 'streaming' ? { ...message, status: 'stopped' } : message));
+    setRequestError('已停止生成，可重新提交问题。');
   };
 
   return (
@@ -143,6 +160,8 @@ export default function InsightPanel({ chart, timeView, liunianYear, selectedPal
         <p>以GitHub开源档案为依据，结合星曜与宫位，探索人生的更多可能。</p>
         <p aria-label="当前解读范围">当前选择：{analysisScope}</p>
       </div>
+      <DatasetStatus records={datasetStatus} />
+      {requestError && <p role="alert" className="px-4 py-2 text-xs" style={{ color: 'var(--ji)' }}>{requestError}</p>}
       {/* ── Topic buttons ── */}
       <div className="flex-shrink-0 px-2 pt-2.5 pb-2" style={{ borderBottom: '1px solid var(--t-border)' }}>
         <div className="insight-topics grid grid-cols-3 gap-1">
@@ -227,6 +246,7 @@ export default function InsightPanel({ chart, timeView, liunianYear, selectedPal
                   命理解读
                 </div>
                 <AiContent text={msg.content} streaming={loading && isLastMsg} />
+                {(msg.status === 'failed' || msg.status === 'stopped') && <p className="mt-2 text-xs" style={{ color: 'var(--t-faint)' }}>回答未完成{msg.status === 'stopped' ? '（已停止生成）' : ''}。</p>}
               </motion.div>
             );
           })}
@@ -260,8 +280,8 @@ export default function InsightPanel({ chart, timeView, liunianYear, selectedPal
           />
           <button
             type="button"
-            onClick={handleSend}
-            disabled={loading || !input.trim()}
+            onClick={loading ? stop : handleSend}
+            disabled={!loading && !input.trim()}
             className="px-3 py-2 rounded-lg text-[11px] font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             style={{
               background: 'rgba(212,168,67,0.15)',
@@ -269,7 +289,7 @@ export default function InsightPanel({ chart, timeView, liunianYear, selectedPal
               color: 'var(--t-gold)',
             }}
           >
-            {loading ? '…' : '提问'}
+            {loading ? '停止生成' : '提问'}
           </button>
         </div>
       </div>

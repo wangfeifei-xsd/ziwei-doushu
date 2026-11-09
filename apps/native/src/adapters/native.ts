@@ -11,7 +11,7 @@ import { requestBody, upstreamEvents, consumeAI } from '@ziwei/features/ai/clien
 import type { ModelSettings } from '@ziwei/domain/ai/config';
 import { createAIByteStream } from './ai-byte-stream';
 import { enrichDataset } from '@ziwei/features/ai/dataset';
-import type { DatasetRepository } from '@ziwei/domain/ziwei/dataset';
+import type { DatasetLoadStatus, DatasetRepository } from '@ziwei/domain/ziwei/dataset';
 
 async function call<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   try { return await invoke<T>(name, args); } catch(e) { throw new Error(typeof e === 'string' ? e : '原生操作失败，请重试。'); }
@@ -89,13 +89,15 @@ export async function createNativeServices(websiteURL: string) {
     ai:{ async *stream(request,signal) {
       const config=await services.model.get();signal.throwIfAborted();
       const base=request.kind==='interpret'?interpretMessages(request.body):hemingMessages(request.body);
-      const messages=await enrichDataset(base,request.body,request.kind,dataset,signal);
-      yield* streamRaw(requestBody(config.mode,config.model,messages),config.mode,signal);
+      let statuses: DatasetLoadStatus[] = [];
+      const messages=await enrichDataset(base,request.body,request.kind,dataset,signal,records=>{statuses=records;});
+      yield {type:'dataset',records:statuses};
+      yield* streamRaw(requestBody(config.mode,config.model,messages,config),config.mode,signal);
     } },
     model:{
       get: () => call<ModelSettings>('model_get'),save: draft => call('model_save',{draft}),
       clear: () => call('model_clear'),unlock:password=>call('model_unlock',{password}),lock:()=>call('model_lock'),
-      test: async (draft,signal) => { const started=performance.now();await consumeAI(streamRaw(requestBody(draft.mode,draft.model,[{role:'user',content:'请仅回复 OK。'}]),draft.mode,signal,draft),()=>{}); return {latencyMs:Math.round(performance.now()-started)}; },
+      test: async (draft,signal) => { const started=performance.now();await consumeAI(streamRaw(requestBody(draft.mode,draft.model,[{role:'user',content:'请仅回复 OK。'}],draft),draft.mode,signal,draft),()=>{}); return {latencyMs:Math.round(performance.now()-started)}; },
     },
     files:{
       importJSON: async () => {

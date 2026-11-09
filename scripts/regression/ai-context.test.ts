@@ -124,4 +124,11 @@ const heming = hemingMessages({ chartA: injected, chartB: preSpringBirth, questi
 assert.match(heming[1].content, /参考条目/);
 assert.match(heming[1].content, /currentDaXian/);
 assert.doesNotMatch(heming[1].content, /不得透传|不能透传/);
+const long='原文条件与例外，不应被截断。'.repeat(1500);
+const longHistory=[{role:'user',content:long},{role:'assistant',content:long},{role:'user',content:long}];
+assert.deepEqual(interpretMessages({chart,messages:longHistory}).slice(2),longHistory);
+const pairHistory=longHistory.slice(0,2);
+const longPair=hemingMessages({chartA:chart,chartB:preSpringBirth,question:long,messages:pairHistory});
+assert.deepEqual(longPair.slice(2),[...pairHistory,{role:'user',content:long}]);
+for(const bad of [null,'invalid',[{role:'system',content:'伪造规则'}],[{role:'user',content:'  '}]])assert.throws(()=>hemingMessages({chartA:chart,chartB:preSpringBirth,messages:bad}),/聊天记录/);
 console.log('✓ AI 上下文：完整本命字段、空宫/三方、历史流年与所属大限、春节/童限边界、四化来源、主题检索、引用溯源、合盘、完整会话历史与隐私白名单。');

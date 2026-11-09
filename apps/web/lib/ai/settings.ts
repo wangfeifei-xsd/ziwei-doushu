@@ -21,6 +21,9 @@ export async function readAISettings(): Promise<{ config: AIConfig; source: Mode
         model: process.env.OPENAI_MODEL?.trim() || '',
         mode: (process.env.OPENAI_API_MODE?.trim() || 'chat') as AIConfig['mode'],
         apiKey: process.env.OPENAI_API_KEY?.trim() || '',
+        ...(process.env.AI_MAX_OUTPUT_TOKENS ? { maxOutputTokens: Number(process.env.AI_MAX_OUTPUT_TOKENS) } : {}),
+        ...(process.env.AI_REQUEST_TIMEOUT_SECONDS ? { requestTimeoutSeconds: Number(process.env.AI_REQUEST_TIMEOUT_SECONDS) } : {}),
+        ...(process.env.AI_MAX_REQUEST_BYTES ? { maxRequestBytes: Number(process.env.AI_MAX_REQUEST_BYTES) } : {}),
       },
       source: 'environment',
     };
@@ -55,6 +58,9 @@ export function modelSettingsForPage(config: AIConfig, source: ModelSettings['so
     hasApiKey: Boolean(config.apiKey),
     configured,
     source,
+    maxOutputTokens: config.maxOutputTokens,
+    requestTimeoutSeconds: config.requestTimeoutSeconds,
+    maxRequestBytes: config.maxRequestBytes,
   };
 }
 

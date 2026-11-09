@@ -9,7 +9,7 @@ import {fileURLToPath} from 'node:url';
 import {readRecord,scanYear} from '../server/dataset/reader.mjs';
 import {generateChart} from '@ziwei/domain/ziwei/algorithm';
 import {LEARNING_CASES} from '@ziwei/domain/ziwei/learning-cases';
-import {DATASET_TOPICS,DATASET_VERSION,DATASET_SOURCE,datasetKey,datasetBirth,recordBirth,datasetParagraphs,datasetReferences,chartFeatures} from '@ziwei/domain/ziwei/dataset';
+import {DATASET_TOPICS,DATASET_VERSION,DATASET_SOURCE,datasetKey,datasetBirth,recordBirth,datasetParagraphs,fullDatasetContext,chartFeatures} from '@ziwei/domain/ziwei/dataset';
 import type {TopicKey} from '@ziwei/domain/ziwei/db-analysis';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -31,11 +31,11 @@ async function main(){
  const meta={command,from,to,recordLimit:limit,datasetVersion:DATASET_VERSION,source:DATASET_SOURCE,engineFingerprint:await engineFingerprint(path.join(root,'packages/domain/src/ziwei')),configuration:'当前领域引擎默认配置；以 fingerprint 识别源码',generatedAt:new Date().toISOString(),attribution:'王多鱼AI / Renhuai123/ziwei-doushu · CC BY 4.0；独立引文见分发目录许可'};
  if(command==='evaluate'){
   const checks=[];
-  for(const l of LEARNING_CASES){const r=await readRecord(datasetKey(l.birth));if(!r)throw new Error('教学盘缺失');const chart=generateChart({...l.birth});const refs=datasetReferences(r,l.questions[0],chart);
-   const check={key:r.k,topics:Object.keys(r.c).length,references:refs.length,characters:refs.reduce((n,r)=>n+r.text.length,0),allLocal:refs.every(p=>p.birthKey===r.k&&p.version===DATASET_VERSION&&p.flags.length===0),primaryMatches:r.ms===null?chartFeatures(chart).empty:chartFeatures(chart).majors.includes(r.ms)};
-   if(check.topics!==13||check.characters>3600||!check.allLocal||!check.primaryMatches||!refs.length)throw new Error(`检查失败：${l.id}`);checks.push(check);
+  for(const l of LEARNING_CASES){const r=await readRecord(datasetKey(l.birth));if(!r)throw new Error('教学盘缺失');const chart=generateChart({...l.birth});const context=fullDatasetContext(r,r.k,'当前盘');
+   const check={key:r.k,...context.integrity,sourceEqual:context.topics.every(p=>p.text===r.c[p.topic]),primaryMatches:r.ms===null?chartFeatures(chart).empty:chartFeatures(chart).majors.includes(r.ms)};
+   if(!check.complete||check.actualTopics!==13||check.sourceCharacters!==check.injectedCharacters||!check.sourceEqual||!check.primaryMatches)throw new Error(`检查失败：${l.id}`);checks.push(check);
   }
-  await writeFile(path.join(out,'evaluation.json'),JSON.stringify({meta,checks,scope:'验证读取、参考过滤和预算；不是模型答案质量或真实事件准确率。'},null,2));console.log(out);return;
+  await writeFile(path.join(out,'evaluation.json'),JSON.stringify({meta,checks,scope:'验证读取、十三专题原文相等及完整注入；不是模型答案质量或真实事件准确率。'},null,2));console.log(out);return;
  }
  const db=(command==='dedupe'||command==='pack')?new DatabaseSync(path.join(out,command==='pack'?'offsets.sqlite':'paragraphs.sqlite')):null;
  if(db){db.exec('CREATE TABLE metadata (key TEXT PRIMARY KEY,value TEXT);');db.prepare('INSERT INTO metadata VALUES (?,?)').run('provenance',JSON.stringify(meta));}

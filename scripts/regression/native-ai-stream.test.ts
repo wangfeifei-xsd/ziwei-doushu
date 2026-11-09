@@ -64,6 +64,26 @@ async function main() {
     bridge.enqueue(bytes(`data: {"type":"response.output_text.delta","delta":"partial"}\n\ndata: ${JSON.stringify(terminal)}\n\n`));
     await assert.rejects(result,error=>error instanceof Error && /失败或不完整/.test(error.message) && !error.message.includes('fixture-only-secret'));
   }
+  for(const [mode,terminal,expected] of [
+    ['chat',JSON.stringify({choices:[{delta:{},finish_reason:'length'}]}),'输出额度'],
+    ['responses',JSON.stringify({type:'response.incomplete',response:{incomplete_details:{reason:'max_output_tokens'}}}),'输出额度'],
+    ['responses','[DONE]','完成信号'],
+    ['responses',JSON.stringify({type:'response.failed',response:{error:{code:'context_length_exceeded',message:'fixture-only-secret'}}}),'上下文容量不足'],
+    ['chat',JSON.stringify({error:{param:'max_completion_tokens',message:'fixture-only-secret'}}),'输出 token 配置不兼容'],
+  ] as const){
+    let cancelled=false;
+    const bridge=createAIByteStream(async()=>{cancelled=true;});
+    const result=consumeAI(upstreamEvents(bridge.stream,mode),()=>{});
+    const first=mode==='chat'?{choices:[{delta:{content:'已有部分回答'}}]}:{type:'response.output_text.delta',delta:'已有部分回答'};
+    bridge.enqueue(bytes(`data: ${JSON.stringify(first)}\n\ndata: ${terminal}\n\n`));
+    await assert.rejects(result,error=>error instanceof Error&&error.message.includes(expected)&&!error.message.includes('fixture-only-secret'));
+    assert.ok(cancelled);
+  }
+  const finalDelta=createAIByteStream(async()=>{});
+  let partial='';
+  const limited=consumeAI(upstreamEvents(finalDelta.stream,'chat'),text=>{partial=text;});
+  finalDelta.enqueue(bytes('data: {"choices":[{"delta":{"content":"最后一段原文"},"finish_reason":"length"}]}\n\n'));
+  await assert.rejects(limited,/输出额度/);assert.equal(partial,'最后一段原文','keep text returned in the same event as the output limit');
   console.log('✓ 原生 AI 流：双协议、三种 SSE 换行逐字节分片、异常 JSON、Responses 终止状态、迟到 IPC、取消和网络错误。');
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

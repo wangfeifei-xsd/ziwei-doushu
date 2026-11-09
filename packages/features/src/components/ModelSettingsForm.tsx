@@ -7,11 +7,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AIAPIMode, ModelSettings } from '@ziwei/domain/ai/config';
 import styles from './ModelSettingsForm.module.css';
 
-type Draft = { baseURL: string; model: string; mode: AIAPIMode; apiKey: string };
+type Draft = { baseURL: string; model: string; mode: AIAPIMode; apiKey: string; maxOutputTokens: string; requestTimeoutSeconds: string; maxRequestMiB: string };
 type Notice = { kind: 'success' | 'error'; message: string };
-const EMPTY: Draft = { baseURL: '', model: '', mode: 'chat', apiKey: '' };
+const EMPTY: Draft = { baseURL: '', model: '', mode: 'chat', apiKey: '', maxOutputTokens: '', requestTimeoutSeconds: '', maxRequestMiB: '' };
 const toDraft = (settings: ModelSettings): Draft => ({
   baseURL: settings.baseURL, model: settings.model, mode: settings.mode, apiKey: '',
+  maxOutputTokens: settings.maxOutputTokens?.toString() ?? '', requestTimeoutSeconds: settings.requestTimeoutSeconds?.toString() ?? '',
+  maxRequestMiB: settings.maxRequestBytes === undefined || settings.maxRequestBytes === null ? '' : String(settings.maxRequestBytes / 1048576),
 });
 
 function ConnectionIcon({ className }: { className?: string }) {
@@ -65,7 +67,8 @@ export default function ModelSettingsForm() {
 
   const dirty = Boolean(settings && (
     draft.baseURL.trim() !== settings.baseURL || draft.model.trim() !== settings.model ||
-    draft.mode !== settings.mode || Boolean(draft.apiKey.trim()) || (services.platform === 'native' && (Boolean(password)||remember&&settings.source==='session'))
+    draft.mode !== settings.mode || Boolean(draft.apiKey.trim()) ||
+    draft.maxOutputTokens !== toDraft(settings).maxOutputTokens || draft.requestTimeoutSeconds !== toDraft(settings).requestTimeoutSeconds || draft.maxRequestMiB !== toDraft(settings).maxRequestMiB || (services.platform === 'native' && (Boolean(password)||remember&&settings.source==='session'))
   ));
 
   function update<K extends keyof Draft>(field: K, value: Draft[K]) {
@@ -88,9 +91,14 @@ export default function ModelSettingsForm() {
     const controller = new AbortController();
     actionController.current = controller;
     try {
+      const submitted = { baseURL: draft.baseURL, model: draft.model, mode: draft.mode, apiKey: draft.apiKey, remember, password,
+        maxOutputTokens: draft.maxOutputTokens ? Number(draft.maxOutputTokens) : undefined,
+        requestTimeoutSeconds: draft.requestTimeoutSeconds ? Number(draft.requestTimeoutSeconds) : undefined,
+        maxRequestBytes: draft.maxRequestMiB ? Math.round(Number(draft.maxRequestMiB) * 1048576) : undefined,
+      };
       const data = action === 'test'
-        ? { ...await services.model.test({ ...draft, remember, password }, controller.signal), settings: settings! }
-        : { settings: await services.model.save({ ...draft, remember, password }), latencyMs: 0 };
+        ? { ...await services.model.test(submitted, controller.signal), settings: settings! }
+        : { settings: await services.model.save(submitted), latencyMs: 0 };
       if (controller.signal.aborted) return;
       if (action === 'save') {
         setSettings(data.settings);
@@ -203,6 +211,26 @@ export default function ModelSettingsForm() {
               aria-describedby="model-name-help" className={`input-base ${styles.input}`} />
             <p id="model-name-help" className={styles.help}>请使用当前密钥有权限访问的完整模型名称。</p>
           </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label htmlFor="model-output-tokens" className={styles.label}>输出 token 额度</label>
+              <input id="model-output-tokens" type="number" min="1" max="9007199254740991" step="1" value={draft.maxOutputTokens}
+                onChange={event => update('maxOutputTokens', event.target.value)} placeholder="使用服务商默认值" className={`input-base ${styles.input}`} />
+              <p className={styles.help}>留空使用服务商默认值；可填写模型支持的较高额度，以便完整回答。</p>
+            </div>
+            <div>
+              <label htmlFor="model-timeout" className={styles.label}>解读超时（秒）</label>
+              <input id="model-timeout" type="number" min="1" max="2147483" step="1" value={draft.requestTimeoutSeconds}
+                onChange={event => update('requestTimeoutSeconds', event.target.value)} placeholder="600" className={`input-base ${styles.input}`} />
+              <p className={styles.help}>默认等待 10 分钟，生成期间可主动停止；连接测试最多等待 30 秒。</p>
+            </div>
+            <div className="sm:col-span-2">
+              <label htmlFor="model-request-size" className={styles.label}>请求容量（MiB）</label>
+              <input id="model-request-size" type="number" min="0.0009765625" max="2047.9999990463257" step="any" value={draft.maxRequestMiB}
+                onChange={event => update('maxRequestMiB', event.target.value)} placeholder="16" className={`input-base ${styles.input}`} />
+              <p className={styles.help}>默认 16 MiB，包含完整档案及会话历史。超出时明确提示，资料不会自动裁剪；模型服务另有自身容量要求。</p>
+            </div>
+          </div>
           <fieldset>
             <legend className={styles.label}>接口类型 <span className={styles.fieldAlias}>API Mode</span></legend>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -251,6 +279,9 @@ export default function ModelSettingsForm() {
             <div><dt className={styles.summaryLabel}>模型</dt><dd className={styles.summaryValue}>{settings.model || '尚未填写'}</dd></div>
             <div><dt className={styles.summaryLabel}>接口类型</dt><dd className={styles.summaryValue}>{settings.mode === 'chat' ? 'Chat Completions' : 'Responses'}</dd></div>
             <div><dt className={styles.summaryLabel}>接口地址</dt><dd className={`${styles.summaryValue} break-all`}>{settings.baseURL || '尚未填写'}</dd></div>
+            <div><dt className={styles.summaryLabel}>输出额度</dt><dd className={styles.summaryValue}>{settings.maxOutputTokens ?? '服务商默认'}</dd></div>
+            <div><dt className={styles.summaryLabel}>解读超时</dt><dd className={styles.summaryValue}>{settings.requestTimeoutSeconds ?? 600} 秒</dd></div>
+            <div><dt className={styles.summaryLabel}>请求容量</dt><dd className={styles.summaryValue}>{(settings.maxRequestBytes ?? 16777216) / 1048576} MiB</dd></div>
             <div className="border-t pt-4" style={{ borderColor: 'var(--bdr)' }}><dt className={styles.summaryLabel}>配置来源</dt><dd className={styles.summaryValue}>{settings.source === 'saved' ? '已保存的配置' : settings.source === 'session' ? '仅本次使用' : '环境变量'}</dd></div>
           </dl>
           {tested && <p className="mt-5 text-xs" role="status" style={{ color: 'var(--ac)' }}>✓ 当前表单配置已通过连接测试</p>}

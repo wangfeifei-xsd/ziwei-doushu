@@ -14,7 +14,7 @@
     "build": "npm run build:web",
     "start": "npm run start:web",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
-    "test:ai": "tsx scripts/regression/ai-stream.test.ts && tsx scripts/regression/ai-context.test.ts && tsx scripts/regression/learning-cases.test.ts",
+    "test:ai": "tsx scripts/regression/ai-stream.test.ts && tsx scripts/regression/ai-request.test.ts && tsx scripts/regression/ai-context.test.ts && tsx scripts/regression/learning-cases.test.ts",
     "test:model-config": "tsx scripts/regression/model-config.test.ts",
     "test:profiles": "tsx scripts/regression/profiles.test.ts",
     "test": "npm run test:dataset && npm run test:ai && npm run test:model-config && npm run test:profiles && tsx scripts/regression/pan-integrity.test.ts && tsx scripts/regression/dst-cn.test.ts && tsx scripts/regression/clock-adjust.test.ts && tsx scripts/regression/sizhu-lichun-boundary.test.ts && tsx scripts/regression/hongluan-tianxi.test.ts && tsx scripts/regression/famous-hour-consistency.test.ts && tsx scripts/regression/iztro-time-index-boundary.test.ts && tsx scripts/regression/solar-date-exists.test.ts && tsx scripts/regression/natal-dual-sihua-same-palace.test.ts && tsx scripts/regression/neutral-naming.test.ts && npm run test:shared && npm run check:boundaries",

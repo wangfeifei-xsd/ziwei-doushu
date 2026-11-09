@@ -1,4 +1,6 @@
 'use client';
+import type { DatasetLoadStatus } from '@ziwei/domain/ziwei/dataset';
+import DatasetStatus from '../components/DatasetStatus';
 import { useServices } from '@ziwei/runtime/services';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from '@ziwei/runtime/navigation';
@@ -9,6 +11,8 @@ import { generateChart as buildChart } from '@ziwei/domain/ziwei/algorithm';
 import type { BirthInfo, ZiweiChart } from '@ziwei/domain/ziwei/types';
 import { useTheme } from '@ziwei/ui/components/ThemeProvider';
 import { consumeAI } from '@ziwei/features/ai/client';
+import { DEFAULT_HEMING_QUESTION } from '@ziwei/features/ai/prompts';
+import type { AIMessage } from '@ziwei/domain/ai/errors';
 import AiInlineText from '@ziwei/features/components/AiInlineText';
 import type { BirthProfile } from '@ziwei/domain/ziwei/profiles';
 
@@ -134,16 +138,22 @@ export default function HemingPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [question, setQuestion] = useState('');
   const [analysisError, setAnalysisError] = useState('');
+  const [datasetStatus, setDatasetStatus] = useState<DatasetLoadStatus[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const requestRef = useRef<AbortController | null>(null);
+  const historyRef = useRef<AIMessage[]>([]);
+  const lastQuestion = useRef(DEFAULT_HEMING_QUESTION);
   useEffect(() => () => requestRef.current?.abort(), []);
   const analysisRef = useRef<HTMLDivElement>(null);
 
   const resetAnalysis = useCallback(() => {
     requestRef.current?.abort();
+    requestRef.current = null;
+    historyRef.current = [];
     setAnalyzing(false);
     setAnalysis('');
     setAnalysisError('');
+    setDatasetStatus([]);
     setFormError(null);
     setQuestion('');
   }, []);
@@ -184,9 +194,12 @@ export default function HemingPage() {
     requestRef.current?.abort();
     const controller = new AbortController();
     requestRef.current = controller;
+    const submittedQuestion = q ?? DEFAULT_HEMING_QUESTION;
+    lastQuestion.current = submittedQuestion;
     setAnalyzing(true);
     setAnalysis('');
     setAnalysisError('');
+    setDatasetStatus([]);
 
     try {
       // 并行起两张盘（如果还没起）
@@ -196,6 +209,7 @@ export default function HemingPage() {
         cA ? Promise.resolve(cA) : generateChart(formToBirthInfo(formA!)),
         cB ? Promise.resolve(cB) : generateChart(formToBirthInfo(formB!)),
       ]);
+      if (controller.signal.aborted) return;
       cA = newA;
       cB = newB;
       if (!cA || !cB) {
@@ -206,14 +220,20 @@ export default function HemingPage() {
       if (!chartA) setChartA(cA);
       if (!chartB) setChartB(cB);
 
-      await consumeAI(services.ai.stream({ kind: 'heming', body: { chartA: cA, chartB: cB, question: q ?? undefined } }, controller.signal), setAnalysis);
+      let answer = '';
+      const history = historyRef.current;
+      await consumeAI(services.ai.stream({ kind: 'heming', body: { chartA: cA, chartB: cB, question: submittedQuestion, messages: history } }, controller.signal), text => {
+        if (!controller.signal.aborted) { answer = text; setAnalysis(text); }
+      }, records => { if (!controller.signal.aborted) setDatasetStatus(records); });
+      if (controller.signal.aborted) return;
+      historyRef.current = [...history, { role: 'user', content: submittedQuestion }, { role: 'assistant', content: answer }];
       // scroll to analysis
       setTimeout(() => analysisRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (error) {
       if (controller.signal.aborted) return;
       setAnalysisError(error instanceof Error ? error.message : '分析暂时不可用，请重试。');
     } finally {
-      if (requestRef.current === controller) setAnalyzing(false);
+      if (requestRef.current === controller) { requestRef.current = null; setAnalyzing(false); }
     }
   }, [chartA, chartB, formA, formB, generateChart]);
 
@@ -367,11 +387,17 @@ export default function HemingPage() {
             </div>
           )}
 
+          <DatasetStatus records={datasetStatus} />
+          {analyzing && <button type="button" className="button-outline self-start mb-3" onClick={() => {
+            requestRef.current?.abort(); requestRef.current = null; setAnalyzing(false);
+            setAnalysisError('已停止生成，回答未完成。');
+          }}>停止生成</button>}
           {analysis && <AiContent text={analysis} streaming={analyzing} />}
 
           {analysisError && (
-            <div style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--bdr)', background: 'var(--bg-card)', fontSize: '13px', color: 'var(--tx-2)', marginTop: '12px' }}>
+            <div role="alert" style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--bdr)', background: 'var(--bg-card)', fontSize: '13px', color: 'var(--tx-2)', marginTop: '12px' }}>
               {analysisError}
+              <button type="button" className="ml-3 underline" onClick={() => void runAnalysis(lastQuestion.current)}>重试本题</button>
             </div>
           )}
         </div>

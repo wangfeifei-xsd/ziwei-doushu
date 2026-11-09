@@ -1,4 +1,6 @@
 'use client';
+import type { DatasetLoadStatus } from '@ziwei/domain/ziwei/dataset';
+import DatasetStatus from './DatasetStatus';
 import { useEffect, useRef, useState } from 'react';
 import Link from '@ziwei/runtime/navigation';
 import { useServices } from '@ziwei/runtime/services';
@@ -35,6 +37,7 @@ export default function LearningChatPanel({ lesson, chart, selection }: {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [datasetStatus, setDatasetStatus] = useState<DatasetLoadStatus[]>([]);
   const [retryQuestion, setRetryQuestion] = useState('');
   const history = useRef<AIMessage[]>([]);
   const requestRef = useRef<AbortController | null>(null);
@@ -51,10 +54,10 @@ export default function LearningChatPanel({ lesson, chart, selection }: {
 
   const send = async (question: string) => {
     const text = question.trim();
-    if (!text || text.length > 4000 || requestRef.current) return;
+    if (!text || requestRef.current) return;
     const controller = new AbortController();
     requestRef.current = controller;
-    setLoading(true); setError(''); setRetryQuestion(text); setInput('');
+    setLoading(true); setError(''); setDatasetStatus([]); setRetryQuestion(text); setInput('');
     followStream.current = true;
     const apiMessages: AIMessage[] = [...history.current, {
       role: 'user' as const, content: `【提问时的视图：${scope}】\n${text}`,
@@ -70,13 +73,14 @@ export default function LearningChatPanel({ lesson, chart, selection }: {
       } }, controller.signal), text => {
         if (controller.signal.aborted || requestRef.current !== controller) return;
         answer = text; updateAnswer('streaming');
-      });
+      }, records => { if (!controller.signal.aborted && requestRef.current === controller) setDatasetStatus(records); });
       if (controller.signal.aborted || requestRef.current !== controller) return;
       history.current = [...apiMessages, { role: 'assistant', content: answer }];
       updateAnswer('complete');
     } catch (failure) {
       if (controller.signal.aborted || requestRef.current !== controller) return;
       updateAnswer('failed');
+      setInput(current => current || text);
       setError(failure instanceof Error ? failure.message : '暂时无法回答，请稍后重试。');
     } finally {
       if (requestRef.current === controller) { requestRef.current = null; setLoading(false); }
@@ -96,6 +100,7 @@ export default function LearningChatPanel({ lesson, chart, selection }: {
       <p>从盘面事实出发，把每一步看盘思路讲清楚。</p>
       <div className="learn-scope" aria-label="学习提问范围"><span />{lesson.title} · {scope}</div>
     </header>
+    <DatasetStatus records={datasetStatus} />
     {messages.length === 0 ? <details className="learn-recommendations">
       <summary>推荐学习问题<span className="learn-expand-label">展开</span><span className="learn-collapse-label">收起</span></summary>
       <div className="learn-empty">
@@ -122,7 +127,7 @@ export default function LearningChatPanel({ lesson, chart, selection }: {
     <details className="learn-context">
       <summary>提问时会参考哪些资料？</summary>
       <p>当前模拟生辰、十二宫星曜与亮度、命身宫、生年四化、三方四正与借星、格局条件、全部大限，以及所选流年和宫位。</p>
-      <p>同时参考本例学习要点、星曜基础、按问题检索的文献条目、同生辰本地资料中的相关段落，以及本盘已完成的全部对话。旧版时间与亮度语句会先过滤；资料读取失败时仍使用当前命盘与古籍。切换示例会开启新对话。</p>
+      <p>同时参考本例学习要点、星曜基础、按问题检索的文献条目、同生辰本地档案全部 13 个专题原文，以及本盘已完成的全部对话。原文完整保留，旧版时间与亮度描述由模型结合当前盘面核对；资料读取失败时会明确显示，本次使用当前命盘与古籍。切换示例会开启新对话。</p>
     </details>
     {error && <div className="learn-error" role="alert"><p>{error}</p><div>
       <button type="button" disabled={loading} onClick={() => void send(retryQuestion)}>重试本题</button>
@@ -130,10 +135,10 @@ export default function LearningChatPanel({ lesson, chart, selection }: {
     </div></div>}
     <form className="learn-composer" onSubmit={event => { event.preventDefault(); void send(input); }}>
       <label htmlFor="learning-question">关于这张盘，你想了解什么？</label>
-      <textarea id="learning-question" ref={inputRef} value={input} maxLength={4000} rows={3} disabled={loading}
+      <textarea id="learning-question" ref={inputRef} value={input} rows={3} disabled={loading}
         placeholder={`例如：这张盘的${lesson.title}应该怎样理解？`} onChange={event => setInput(event.target.value)}
         onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void send(input); } }} />
-      <div className="learn-composer-actions"><span>{input.length}/4000 · Ctrl / ⌘ + Enter</span>
+      <div className="learn-composer-actions"><span>Ctrl / ⌘ + Enter</span>
         {loading ? <button type="button" className="learn-stop" onClick={stop}>停止生成</button>
           : <button type="submit" className="button-gold" disabled={!input.trim()}>发送问题 <span aria-hidden="true">↑</span></button>}
       </div>

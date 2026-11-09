@@ -1,9 +1,11 @@
 import type { BirthInfo, ZiweiChart } from './types';
-import { TOPIC_LABEL, TOPIC_PALACE_NAME, type TopicKey } from './db-analysis';
+import { TOPIC_LABEL, type TopicKey } from './db-analysis';
 import { detectPatterns } from './patterns';
 
 export const DATASET_VERSION = 'ca268829f7a9';
 export const DATASET_SOURCE = 'https://github.com/Renhuai123/ziwei-doushu/releases/tag/v4.0-13d';
+export const DATASET_GENERATED_AT = '2026-10-15';
+export const DATASET_ENGINE_COMMIT = 'c25dd495';
 export const DATASET_TOPICS = Object.keys(TOPIC_LABEL) as TopicKey[];
 export { TOPIC_LABEL };
 export interface DatasetRecord { k: string; y: number; m: number; d: number; h: number; g: 'male' | 'female'; ms: string | null; t: Record<TopicKey, number>; c: Record<TopicKey, string> }
@@ -15,6 +17,45 @@ export interface DatasetRepository {
   search(query: DatasetQuery, signal?: AbortSignal): Promise<DatasetPage>;
   status(signal?: AbortSignal): Promise<DatasetStatus>;
   clearCache(): Promise<void>;
+}
+export interface DatasetLoadStatus {
+  person: '当前盘' | '甲方' | '乙方';
+  key: string;
+  status: '完整档案已加载' | '未找到同生辰记录' | '超出资料覆盖范围' | '资料不完整' | '资料暂不可用';
+  reason?: string;
+  integrity: { expectedTopics: number; actualTopics: number; sourceCharacters: number; injectedCharacters: number; complete: boolean };
+}
+export interface DatasetContext extends DatasetLoadStatus {
+  version: string;
+  generatedAt: string;
+  engineCommit: string;
+  source: string;
+  licenses: { dataset: string; embeddedExcerpts: string };
+  topics: { topic: TopicKey; title: string; text: string }[];
+}
+export function datasetLoadStatus(person: DatasetLoadStatus['person'], key: string, status: DatasetLoadStatus['status'], reason?: string): DatasetLoadStatus {
+  return { person, key, status, ...(reason ? { reason } : {}), integrity: {
+    expectedTopics: DATASET_TOPICS.length, actualTopics: 0, sourceCharacters: 0, injectedCharacters: 0, complete: false,
+  } };
+}
+
+/** Preserve every source string, including headings, whitespace, repetitions and historical statements. */
+export function fullDatasetContext(record: DatasetRecord, key: string, person: DatasetLoadStatus['person']): DatasetContext {
+  const birth = datasetBirth(key);
+  if (record.k !== key || record.y !== birth.year || record.m !== birth.month || record.d !== birth.day || record.h !== birth.hour || record.g !== birth.gender) {
+    throw new Error('档案生辰不一致。');
+  }
+  const topics = DATASET_TOPICS.filter(topic => typeof record.c?.[topic] === 'string' && record.c[topic].trim().length > 0)
+    .map(topic => ({ topic, title: TOPIC_LABEL[topic], text: record.c[topic] }));
+  const complete = topics.length === DATASET_TOPICS.length;
+  const sourceCharacters = topics.reduce((sum, item) => sum + item.text.length, 0);
+  return {
+    ...datasetLoadStatus(person, key, complete ? '完整档案已加载' : '资料不完整', complete ? undefined : '档案缺少专题正文，本次未注入档案。'),
+    version: DATASET_VERSION, generatedAt: DATASET_GENERATED_AT, engineCommit: DATASET_ENGINE_COMMIT, source: DATASET_SOURCE,
+    licenses: { dataset: 'CC BY 4.0', embeddedExcerpts: '《天纪》引文依 CC BY-NC-SA 4.0 单独授权' },
+    integrity: { expectedTopics: DATASET_TOPICS.length, actualTopics: topics.length, sourceCharacters, injectedCharacters: complete ? sourceCharacters : 0, complete },
+    topics: complete ? topics : [],
+  };
 }
 export function datasetKey(b: BirthInfo): string { return `${b.year}-${String(b.month).padStart(2,'0')}-${String(b.day).padStart(2,'0')}-${b.hour}-${b.gender}`; }
 export function datasetBirth(key: string): BirthInfo {
@@ -35,21 +76,6 @@ export function paragraphFlags(text: string): string[] {
 }
 export function datasetParagraphs(record: DatasetRecord, topic: TopicKey) {
   return record.c[topic].split(/\n\s*\n/).map((text,index)=>({ id:`${record.k}/${topic}/${index}`, index, text:text.trim(), flags:paragraphFlags(text) })).filter(p=>p.text);
-}
-export function datasetReferences(record: DatasetRecord, question: string, chart: ZiweiChart, topic?: string, palaceBranch?: number, budget=3600) {
-  const hints: Partial<Record<TopicKey, RegExp>> = {career:/事业|工作|职业|官禄/,wealth:/钱|财|收入/,love:/感情|夫妻|婚|恋/,move:/迁移|外出|城市|搬家/,health:/健康|疾厄/,family:/兄弟|合伙/,children:/子女|孩子/,friends:/人际|朋友|贵人/,home:/房|田宅/,spirit:/福德|精神/,parents:/父母|长辈/,personality:/性格|脾气/};
-  const palace = chart.palaces.find(p=>p.branch===palaceBranch)?.name;
-  const topics=DATASET_TOPICS.map(key=>({key,score:(hints[key]?.test(question)?8:0)+(key===topic?3:0)+(TOPIC_PALACE_NAME[key]===palace?4:0)+(key==='overview'?1:0)})).sort((a,b)=>b.score-a.score).slice(0,3);
-  const names=chart.palaces.flatMap(p=>p.stars.map(s=>s.name)).filter(n=>question.includes(n));
-  const seen=new Set<string>();let used=0;
-  const references=[];
-  for(const {key} of topics){
-    const candidates=datasetParagraphs(record,key).filter(p=>!p.flags.length && p.text.length>=35 && p.text.length<=1400)
-      .sort((a,b)=>names.filter(n=>b.text.includes(n)).length-names.filter(n=>a.text.includes(n)).length);
-    for(const p of candidates){if(seen.has(p.text)||used+p.text.length>budget)continue;seen.add(p.text);used+=p.text.length;
-      references.push({...p,topic:key,version:DATASET_VERSION,birthKey:record.k,source:DATASET_SOURCE});if(references.length>=6)return references;}
-  }
-  return references;
 }
 export function chartFeatures(chart: ZiweiChart) {
   const ming=chart.palaces.find(p=>p.isMingGong || p.branch===chart.mingGongBranch)!;

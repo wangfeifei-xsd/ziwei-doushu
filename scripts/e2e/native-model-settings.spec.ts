@@ -1,24 +1,39 @@
 import { test, expect, type Page } from '@playwright/test';
+import { readRecord } from './fixtures/dataset';
+import { LEARNING_CASES } from '@ziwei/domain/ziwei/learning-cases';
+import { DATASET_TOPICS, datasetKey, type DatasetRecord } from '@ziwei/domain/ziwei/dataset';
+
+type NativePayload = {input?:{role:string;content:string}[];messages?:{role:string;content:string}[];max_output_tokens?:number;max_completion_tokens?:number};
+let recordsPromise:Promise<Record<string,DatasetRecord>>|undefined;
+function fixtureRecords(){
+ return recordsPromise??=Promise.all([...new Set([...LEARNING_CASES.map(l=>datasetKey(l.birth)),'1990-05-10-4-male','2000-02-01-0-female','1990-02-06-11-male'])].map(async key=>{
+  const record=await readRecord(key);if(!record)throw new Error(`Missing fixture ${key}`);return [key,record] as const;
+ })).then(entries=>Object.fromEntries(entries));
+}
+
 
 type NativeFixture = {
   completeUnlock(): void;
   completeStream(): void;
   response: 'valid' | 'malformed' | 'delayed-completion' | 'incomplete' | 'channel-error';
   requests: number;
-  payloads: { input: { role: string; content: string }[] }[];
+  payloads: NativePayload[];
+  datasetResponse: 'valid'|'missing'|'incomplete'|'corrupt'|'timeout';
 };
 
-async function nativeSettings(page: Page, locked = true) {
+async function nativeSettings(page: Page, locked = true, mode:'chat'|'responses'='responses') {
+  const records=await fixtureRecords();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(initiallyLocked => {
+  await page.addInitScript(({initiallyLocked,mode,records}) => {
     const settings = {
-      baseURL: 'https://fixture.example/v1', model: 'fixture', mode: 'responses',
+      baseURL: 'https://fixture.example/v1', model: 'fixture', mode,
+      maxOutputTokens:undefined as number|undefined,requestTimeoutSeconds:undefined as number|undefined,maxRequestBytes:undefined as number|undefined,
       apiKey: '', hasApiKey: true, hasVault: true, locked: initiallyLocked,
       configured: !initiallyLocked, source: 'saved',
     };
     const fixture = {
       completeUnlock: () => {}, completeStream: () => {}, response: 'valid', requests: 0,
-      payloads: [] as { input: { role: string; content: string }[] }[],
+      payloads: [] as NativePayload[],datasetResponse:'valid',
     };
     Object.assign(window, { isTauri: true, __nativeFixture: fixture, __TAURI_INTERNALS__: {
       transformCallback: () => 1, unregisterCallback: () => {},
@@ -26,6 +41,24 @@ async function nativeSettings(page: Page, locked = true) {
         if (command === 'bootstrap') return {};
         if (command === 'platform_info') return { mobile: true };
         if (command === 'model_get') return { ...settings };
+        if (command === 'model_save') {
+          const draft=args.draft as typeof settings;
+          settings.mode=draft.mode;
+          settings.maxOutputTokens=draft.maxOutputTokens;settings.requestTimeoutSeconds=draft.requestTimeoutSeconds;settings.maxRequestBytes=draft.maxRequestBytes;
+          return {...settings};
+        }
+        if(command==='dataset_read'){
+          if(fixture.datasetResponse==='corrupt')throw '资料校验失败。';
+          if(fixture.datasetResponse==='timeout')throw '资料读取超时。';
+          const record=records[args.key as string];
+          if(fixture.datasetResponse==='missing')return null;
+          if(fixture.datasetResponse==='incomplete'&&record)return {...record,c:{...record.c,health:''}};
+          return record??null;
+        }
+        if(command==='profile_list')return [
+          {id:'a'.repeat(64),savedAt:1,form:{name:'甲方夹具',year:'1990',month:'2',day:'6',clockHour:'22',clockMinute:'0',unknownTime:false,province:'',city:'',longitude:120,gender:'male'}},
+          {id:'b'.repeat(64),savedAt:2,form:{name:'乙方夹具',year:'1983',month:'1',day:'6',clockHour:'8',clockMinute:'0',unknownTime:false,province:'',city:'',longitude:120,gender:'male'}},
+        ];
         if (command === 'model_unlock') {
           if (args.password !== 'test-password') throw '密钥库无法解锁，请检查密码；原文件未修改。';
           await new Promise<void>(resolve => { fixture.completeUnlock = resolve; });
@@ -39,7 +72,7 @@ async function nativeSettings(page: Page, locked = true) {
         if (command === 'ai_stream') {
           if (settings.locked) throw '密钥库已锁定，请先解锁。';
           fixture.requests++;
-          fixture.payloads.push(args.body as { input: { role: string; content: string }[] });
+          fixture.payloads.push(args.body as NativePayload);
           const channel = args.channel as { onmessage(event: { type: string; bytes?: number[]; error?: string | null }): void };
           if (fixture.response === 'delayed-completion') {
             const answer = '模型已返回完整解读。请结合命盘与实际情况作判断。';
@@ -67,6 +100,10 @@ async function nativeSettings(page: Page, locked = true) {
             channel.onmessage({ type: 'end', error: fixture.response === 'channel-error' ? '模型连接中断。' : null });
             return null;
           }
+          if(settings.mode==='chat'){
+            channel.onmessage({type:'chunk',bytes:Array.from(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"OK"}}]}\n\ndata: [DONE]\n\n'))});
+            channel.onmessage({type:'end',error:null});return null;
+          }
           const data = fixture.response === 'malformed'
             ? 'data: this-is-not-json\n\n'
             : 'event: response.output_text.delta\rdata: {"type":"response.output_text.delta","delta":"OK"}\r\revent: response.completed\rdata: {"type":"response.completed","response":{"status":"completed"}}\r\r';
@@ -76,7 +113,7 @@ async function nativeSettings(page: Page, locked = true) {
         return null;
       },
     } });
-  }, locked);
+  }, {initiallyLocked:locked,mode,records});
   await page.goto('/#/settings/model');
   await expect(page.getByRole('heading', { name: '服务连接', exact: true })).toBeVisible();
 }
@@ -98,11 +135,13 @@ test('命盘学习：原生 Responses 上下文与换盘隔离', async ({ page }
   await page.getByRole('button', { name: '发送问题' }).click();
   await expect(page.getByRole('log')).toContainText('OK');
   const first = (await fixture()).payloads[0];
-  const context = JSON.parse(first.input[0].content.split('\n').slice(1).join('\n'));
+  const context = JSON.parse(first.input![0].content.split('\n').slice(1).join('\n'));
   expect(context.learning.caseId).toBe('huaji');
   expect(context.analysis.selection.view).toBe('liunian');
   expect(context.palaces).toHaveLength(12);
   expect(context.references.entries.length).toBeGreaterThan(0);
+  expect(context.dataset[0].topics).toHaveLength(13);
+  await expect(page.getByLabel('本次档案资料')).toContainText('已加载 13/13 个专题');
   await page.evaluate(() => { (window as unknown as { __nativeFixture: NativeFixture }).__nativeFixture.response = 'delayed-completion'; });
   await input.fill('这是原生旧盘的问题');
   await page.getByRole('button', { name: '发送问题' }).click();
@@ -118,8 +157,8 @@ test('命盘学习：原生 Responses 上下文与换盘隔离', async ({ page }
   await page.getByRole('button', { name: '发送问题' }).click();
   await expect(input).toBeEnabled();
   const last = (await fixture()).payloads.at(-1)!;
-  expect(last.input).toHaveLength(2);
-  expect(JSON.parse(last.input[0].content.split('\n').slice(1).join('\n')).learning.caseId).toBe('riyue');
+  expect(last.input!).toHaveLength(2);
+  expect(JSON.parse(last.input![0].content.split('\n').slice(1).join('\n')).learning.caseId).toBe('riyue');
   await expect(page.getByRole('log')).not.toContainText('模型已返回完整解读');
 });
 
@@ -162,9 +201,9 @@ test('AI 上下文：原生 Responses 手动提交完整上下文，选择期间
   await expect.poll(count).toBe(1);
   await expect(input).toBeEnabled();
   const initialPayload = await payload();
-  const initial = JSON.parse(initialPayload.input[0].content.split('\n').slice(1).join('\n'));
+  const initial = JSON.parse(initialPayload.input![0].content.split('\n').slice(1).join('\n'));
   expect(initial.analysis.selection).toMatchObject({ view: 'daxian', topic: 'wealth', palaceBranch: 5 });
-  expect(initialPayload.input.at(-1)?.content).toContain('我应该注意哪些方面？');
+  expect(initialPayload.input!.at(-1)?.content).toContain('我应该注意哪些方面？');
   await page.getByRole('button', { name: '下一年', exact: true }).click();
   await page.getByRole('button', { name: /^流年.+化[禄权科忌]$/ }).first().press('Enter');
   await input.fill('这一年财运如何？');
@@ -175,7 +214,7 @@ test('AI 上下文：原生 Responses 手动提交完整上下文，选择期间
   await expect.poll(count).toBe(2);
   await expect(input).toBeEnabled();
   const currentPayload = await payload();
-  const current = JSON.parse(currentPayload.input[0].content.split('\n').slice(1).join('\n'));
+  const current = JSON.parse(currentPayload.input![0].content.split('\n').slice(1).join('\n'));
   expect(current.analysis.selection).toMatchObject({ view: 'liunian', liunianYear: initial.analysis.selectedYear.year + 1, topic: 'wealth', palaceBranch: 5 });
   expect(current.analysis.selection.siHua.view).toBe('liunian');
   expect(current.analysis.selectedYear.palaces).toHaveLength(12);
@@ -183,8 +222,8 @@ test('AI 上下文：原生 Responses 手动提交完整上下文，选择期间
   expect(current.birth).toMatchObject({ year: 1990, month: 5, day: 10, gender: 'male' });
   expect(current.references.entries.length).toBeGreaterThan(0);
   expect(JSON.stringify(current)).not.toContain('原生上下文');
-  expect(currentPayload.input[1]).toEqual(initialPayload.input[1]);
-  expect(currentPayload.input[2]).toEqual({ role: 'assistant', content: 'OK' });
+  expect(currentPayload.input![1]).toEqual(initialPayload.input![1]);
+  expect(currentPayload.input![2]).toEqual({ role: 'assistant', content: 'OK' });
   await page.getByRole('button', { name: '重新起盘' }).click();
   await page.goto('/#/chart?y=2000&m=1&d=31&h=23&mi=30&g=f&n=新会话');
   await expect(input).toBeEnabled();
@@ -196,9 +235,9 @@ test('AI 上下文：原生 Responses 手动提交完整上下文，选择期间
   await expect.poll(count).toBe(3);
   await expect(input).toBeEnabled();
   const nextSession = await payload();
-  expect(nextSession.input).toHaveLength(2);
-  expect(nextSession.input[1].content).not.toContain('我应该注意哪些方面');
-  expect(JSON.parse(nextSession.input[0].content.split('\n').slice(1).join('\n')).birth.year).toBe(2000);
+  expect(nextSession.input!).toHaveLength(2);
+  expect(nextSession.input![1].content).not.toContain('我应该注意哪些方面');
+  expect(JSON.parse(nextSession.input![0].content.split('\n').slice(1).join('\n')).birth.year).toBe(2000);
 });
 
 test('原生模型配置：密码错误在解锁按钮旁显示并可重试', async ({ page }, info) => {
@@ -258,4 +297,64 @@ test('原生 Responses：通道结束后仍报告不完整回复和真实网络�
     await expect(page.getByRole('alert')).toContainText(message);
     await expect(page.getByText(/连接成功，模型已返回有效响应/)).not.toBeVisible();
   }
+});
+
+for(const mode of ['chat','responses'] as const){
+ test(`完整档案：原生 ${mode} 单盘、学习及合盘全文、长历史与输出设置`,async({page},info)=>{
+  test.skip(info.project.name!=='vite','真实原生适配器配合隔离 IPC。');
+  await nativeSettings(page,false,mode);
+  const records=await fixtureRecords();
+  const latest=()=>page.evaluate(()=>(window as unknown as {__nativeFixture:NativeFixture}).__nativeFixture.payloads.at(-1)!);
+  const context=(payload:NativePayload)=>JSON.parse((mode==='chat'?payload.messages![1]:payload.input![0]).content.split('\n').slice(1).join('\n'));
+  const verify=(actual:{key:string;topics:{topic:string;text:string}[];person:string;integrity:{complete:boolean}},source:DatasetRecord)=>{
+   expect(actual.key).toBe(source.k);expect(actual.topics).toHaveLength(13);expect(actual.integrity.complete).toBe(true);
+   for(const topic of DATASET_TOPICS)expect(actual.topics.find(t=>t.topic===topic)!.text).toBe(source.c[topic]);
+  };
+  await page.goto('/#/chart?y=1990&m=2&d=6&h=22&mi=0&g=m');
+  const input=page.getByRole('textbox',{name:'命盘解读提问'});
+  const long='条件与例外。'.repeat(10000);
+  await input.fill(long);await page.locator('.insight-panel').getByRole('button',{name:'提问',exact:true}).click();await expect(input).toBeEnabled();
+  const single=await latest();verify(context(single).dataset[0],records['1990-02-06-11-male']);
+  expect(Buffer.byteLength(JSON.stringify(single))).toBeGreaterThan(262144);expect(single.max_completion_tokens).toBeUndefined();expect(single.max_output_tokens).toBeUndefined();
+  await input.fill('请继续解释');await page.locator('.insight-panel').getByRole('button',{name:'提问',exact:true}).click();await expect(input).toBeEnabled();
+  const followup=await latest();expect((mode==='chat'?followup.messages!:followup.input!)[mode==='chat'?2:1].content).toContain(long);
+  expect(context(followup).dataset).toEqual(context(single).dataset);
+  await page.goto('/#/settings/model');
+  await page.getByLabel('输出 token 额度',{exact:true}).fill('32768');await page.getByLabel('解读超时（秒）',{exact:true}).fill('900');await page.getByLabel('请求容量（MiB）',{exact:true}).fill('32');
+  await page.getByRole('button',{name:'保存配置',exact:true}).click();await expect(page.getByText('配置已保存，新的 AI 解读与合盘分析将立即使用此配置。',{exact:true})).toBeVisible();
+  await page.goto('/#/learn');
+  const learning=page.getByRole('textbox',{name:'关于这张盘，你想了解什么？'});
+  const question='学习条件与例外。'.repeat(600);
+  await learning.fill(question);await page.getByRole('button',{name:'发送问题'}).click();await expect(learning).toBeEnabled();
+  const lesson=await latest();verify(context(lesson).dataset[0],records['1983-01-06-4-male']);
+  expect(lesson[mode==='chat'?'max_completion_tokens':'max_output_tokens']).toBe(32768);
+  await expect(page.getByLabel('本次档案资料')).toContainText('已加载 13/13 个专题');
+  await page.getByRole('button',{name:'发送问题'}).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('button',{name:'发送问题'})).toBeInViewport();
+  await page.screenshot({path:`.runtime/full-context/native-${mode}-learning.png`,fullPage:true});
+  await page.goto('/#/heming');
+  await page.locator('#heming-profile-a').selectOption('a'.repeat(64));await page.locator('#heming-profile-b').selectOption('b'.repeat(64));
+  await page.getByRole('button',{name:'开始合盘分析',exact:true}).click();await expect(page.getByLabel('本次档案资料')).toContainText('甲方：已加载 13/13');await expect(page.getByLabel('本次档案资料')).toContainText('乙方：已加载 13/13');
+  await expect(page.getByRole('button',{name:'停止生成',exact:true})).not.toBeVisible();
+  const pair=await latest();verify(context(pair).dataset[0],records['1990-02-06-11-male']);verify(context(pair).dataset[1],records['1983-01-06-4-male']);
+  expect(context(pair).dataset.map((r:{person:string})=>r.person)).toEqual(['甲方','乙方']);
+  const pairInput=page.getByPlaceholder('继续追问，如：哪几年是两人感情关键期？');await pairInput.fill(long);
+  await pairInput.press('Enter');await expect(pairInput).toBeEnabled();
+  const pairFollowup=await latest();const history=mode==='chat'?pairFollowup.messages!:pairFollowup.input!;
+  expect(history.filter(m=>m.role==='assistant')).toEqual([{role:'assistant',content:'OK'}]);expect(history.at(-1)!.content).toBe(long);
+  expect(Buffer.byteLength(JSON.stringify(pairFollowup))).toBeGreaterThan(262144);
+ });
+}
+
+test('完整档案：原生缺失、不完整、损坏和超时状态不冒充成功',async({page},info)=>{
+ test.skip(info.project.name!=='vite','隔离原生资料错误与界面状态。');
+ await nativeSettings(page,false);
+ await page.goto('/#/learn');
+ const input=page.getByRole('textbox',{name:'关于这张盘，你想了解什么？'});
+ for(const [failure,expected] of [['missing','未找到同生辰记录'],['incomplete','资料不完整'],['corrupt','档案校验失败'],['timeout','档案读取超时']] as const){
+  await page.evaluate(value=>{(window as unknown as {__nativeFixture:NativeFixture}).__nativeFixture.datasetResponse=value;},failure);
+  await input.fill('资料是否完整？');await page.getByRole('button',{name:'发送问题'}).click();await expect(input).toBeEnabled();
+  const status=page.getByLabel('本次档案资料');await expect(status).toContainText(expected);await expect(status).not.toContainText('已加载 13/13');
+  await expect(status).toContainText('本次仅参考当前命盘与古籍');
+ }
 });
